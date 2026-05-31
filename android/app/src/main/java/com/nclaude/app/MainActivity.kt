@@ -126,8 +126,47 @@ class MainActivity : AppCompatActivity() {
             form.post { form.fullScroll(View.FOCUS_DOWN) }
         }
         findViewById<Button>(R.id.btnFillTitle).setOnClickListener { manualFill(title = true) }
+        findViewById<Button>(R.id.btnTitleCopy).setOnClickListener { copyTitleToClipboard() }
+        findViewById<Button>(R.id.btnTitlePaste).setOnClickListener { manualPaste(title = true) }
         findViewById<Button>(R.id.btnFillBody).setOnClickListener { manualFill(title = false) }
+        findViewById<Button>(R.id.btnBodyCopy).setOnClickListener { copyBodyToClipboard() }
+        findViewById<Button>(R.id.btnBodyPaste).setOnClickListener { manualPaste(title = false) }
         findViewById<Button>(R.id.btnFillPhoto).setOnClickListener { manualPhoto() }
+    }
+
+    /** 제목을 일반 텍스트로 클립보드에 복사 — 네이버 제목칸을 길게 눌러 붙여넣기 */
+    private fun copyTitleToClipboard() {
+        val t = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
+        if (t == null) { toast("먼저 제목을 입력/생성하세요"); return }
+        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cb.setPrimaryClip(ClipData.newPlainText("title", t))
+        toast("제목 복사됨 — 네이버 제목칸을 길게 눌러 붙여넣기")
+        setStatus("제목을 클립보드에 복사했어요 — 제목칸 길게 눌러 붙여넣기")
+    }
+
+    /** 본문을 서식 포함 HTML 로 클립보드에 복사 — 네이버 본문칸을 길게 눌러 붙여넣기 */
+    private fun copyBodyToClipboard() {
+        val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
+        if (c == null) { toast("먼저 본문을 입력하세요"); return }
+        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtml(c)))
+        toast("본문 복사됨 — 네이버 본문칸을 길게 눌러 붙여넣기")
+        setStatus("본문을 클립보드에 복사했어요 — 본문칸 길게 눌러 붙여넣기")
+    }
+
+    /** 붙여넣기(append): 에디터의 기존 내용을 지우지 않고 커서 끝에 제목/본문을 추가 */
+    private fun manualPaste(title: Boolean) {
+        if (web.visibility != View.VISIBLE) {
+            toast("먼저 '블로그 포스팅'으로 글쓰기 페이지를 여세요"); return
+        }
+        val payload: JSONObject =
+            Formatter.payload(titleInput.text.toString(), contentInput.text.toString())
+        val fn = if (title) "__NB_pasteTitle" else "__NB_pasteBody"
+        setStatus(if (title) "제목 붙여넣기 시도…" else "내용 붙여넣기 시도…")
+        dbg("붙여넣기 호출 $fn")
+        web.evaluateJavascript(EditorJs.SCRIPT) {
+            web.evaluateJavascript("window.$fn($payload)", null)
+        }
     }
 
     /** 포스팅 중이면 수동 입력 바, 아니면 폼 이동 바를 보여준다. */
@@ -396,6 +435,10 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { dbg(if (ok) "사진창 호출됨" else "사진버튼 실패") }
 
         @JavascriptInterface
+        fun onManualResult(kind: String, ok: Boolean, len: Int, found: Boolean) =
+            runOnUiThread { handleManualResult(kind, ok, len, found) }
+
+        @JavascriptInterface
         fun log(msg: String) = runOnUiThread { dbg(msg) }
 
         @JavascriptInterface
@@ -424,15 +467,47 @@ class MainActivity : AppCompatActivity() {
         val bodyLen = report.optInt("bodyLen")
         val paraCount = report.optInt("paraCount")
         val fmt = report.optInt("lineSegs") + report.optInt("words")
-        setStatus("입력: 제목 ${yn(titleOk)} · 본문 ${yn(bodyOk)}(${bodyLen}자) · 서식 ${fmt}곳")
+        dbg("입력결과 제목=${yn(titleOk)} 본문=${yn(bodyOk)} ${bodyLen}자 서식=${fmt}")
+
+        // 본문이 실제로 들어가지 않았으면(자동 입력 약함) 사진 단계로 진행하지 않는다.
+        // → '사진 입력 중' 같은 잘못된 진행 메시지를 막고, 수동 복사/붙여넣기를 안내.
         if (bodyLen < 5) {
-            setStatus("자동 입력이 약합니다 — 에디터 본문을 길게 눌러 '붙여넣기'(서식 포함) 하세요")
-            dbg("본문 거의 비어있음 → 클립보드 붙여넣기 권장")
+            progress.visibility = View.GONE
+            setStatus("자동 입력이 안 됐어요 — 상단 '제목 복사'/'내용 복사' 후 에디터칸을 길게 눌러 붙여넣기 하세요")
+            dbg("본문 ${bodyLen}자 → 사진 단계 중단, 수동 입력 안내")
+            return
         }
+
+        setStatus("입력: 제목 ${yn(titleOk)} · 본문 ${yn(bodyOk)}(${bodyLen}자) · 서식 ${fmt}곳")
         if (selectedPhotos.isNotEmpty()) {
             web.postDelayed({ insertPhotosSequentially(paraCount) }, 1000)
         } else {
             afterPhotos()
+        }
+    }
+
+    /** 수동 입력/붙여넣기 결과를 정직하게 표시(읽기 검증된 글자수 기반) */
+    private fun handleManualResult(kind: String, ok: Boolean, len: Int, found: Boolean) {
+        val label = when (kind) {
+            "title" -> "제목 입력"
+            "titlePaste" -> "제목 붙여넣기"
+            "body" -> "내용 입력"
+            "bodyPaste" -> "내용 붙여넣기"
+            else -> kind
+        }
+        if (!found) {
+            setStatus("$label 실패 — 글쓰기 페이지(에디터)를 먼저 여세요")
+            dbg("$label: 입력칸 못찾음")
+            return
+        }
+        if (ok && len > 0) {
+            setStatus("$label 확인: O (${len}자 입력됨)")
+            dbg("$label 성공 ${len}자")
+        } else {
+            val isTitle = kind.startsWith("title")
+            val copyBtn = if (isTitle) "제목 복사" else "내용 복사"
+            setStatus("$label 실패 — '$copyBtn' 누른 뒤 에디터칸을 길게 눌러 붙여넣기 하세요")
+            dbg("$label 실패(0자) → 복사/붙여넣기 안내")
         }
     }
 

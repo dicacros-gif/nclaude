@@ -109,15 +109,17 @@ object EditorJs {
     try{ el.focus(); }catch(e){}
   }
 
-  function typeTitle(d, el, text){
+  function typeTitle(d, el, text, clear){
     if(!el) return false;
-    focusHost(d, el); selectAll(d, el);
-    try{ d.execCommand('delete',false,null); }catch(e){}
+    focusHost(d, el);
+    if (clear===false){ caretEnd(d, el); }
+    else { selectAll(d, el); try{ d.execCommand('delete',false,null); }catch(e){} }
     var ok=false;
     try{ ok = d.execCommand('insertText',false,text); }catch(e){ ok=false; }
     if (!ok || plainLen(el)===0){            // 폴백: 직접 주입 + input 이벤트
       try{
-        el.textContent = text;
+        if (clear===false){ el.textContent = (el.textContent||'') + text; }
+        else { el.textContent = text; }
         var IE = win(d).InputEvent || win(d).Event;
         el.dispatchEvent(new IE('input',{bubbles:true}));
         ok = plainLen(el)>0;
@@ -127,10 +129,11 @@ object EditorJs {
   }
 
   // 줄 단위로 입력해 실제 문단을 생성(줄간격 보존)
-  function typeBody(d, el, lines){
+  function typeBody(d, el, lines, clear){
     if(!el) return false;
-    focusHost(d, el); selectAll(d, el);
-    try{ d.execCommand('delete',false,null); }catch(e){}
+    focusHost(d, el);
+    if (clear===false){ caretEnd(d, el); if((el.textContent||'').length){ try{ d.execCommand('insertParagraph',false,null); }catch(e){} } }
+    else { selectAll(d, el); try{ d.execCommand('delete',false,null); }catch(e){} }
     var any=false;
     for (var i=0;i<lines.length;i++){
       if (i>0){
@@ -146,7 +149,8 @@ object EditorJs {
       try{
         var html='';
         for (var j=0;j<lines.length;j++){ var L=lines[j]||''; html += '<p>'+(L?esc(L):'<br>')+'</p>'; }
-        el.innerHTML = html;
+        if (clear===false){ el.innerHTML = (el.innerHTML||'') + html; }
+        else { el.innerHTML = html; }
         var IE2 = win(d).InputEvent || win(d).Event;
         el.dispatchEvent(new IE2('input',{bubbles:true}));
         any = plainLen(el)>0;
@@ -314,19 +318,31 @@ object EditorJs {
     attempt();
   };
 
-  // 수동 제목 입력(상단 '제목 입력' 버튼) — 자동 실패 시 단독 호출
+  // 입력 결과를 코틀린으로 정직하게 보고(읽기 검증된 글자수)
+  function reportManual(kind, ok, len, found){
+    try{ AndroidPoster.onManualResult(kind, !!ok, len|0, found!==false); }catch(e){}
+  }
+
+  // 수동 제목 입력(상단 '제목 입력' 버튼) — 자동 실패 시 단독 호출. clear=true(덮어쓰기)
   window.__NB_fillTitle = function(payload){
     if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
     var n=0;
     (function go(){
       var d = edoc(); closePopups(d);
       var tEl = titleEl(d);
-      if (tEl){ var ok=typeTitle(d, tEl, payload.title||''); log('수동 제목입력 '+ok); return; }
-      if (++n < 12){ setTimeout(go, 500); } else log('수동 제목: 제목칸 못찾음');
+      if (tEl){
+        typeTitle(d, tEl, payload.title||'', true);
+        var len = (tEl.textContent||'').length;       // 실제 들어간 글자수 재확인
+        log('수동 제목입력 글자='+len);
+        reportManual('title', len>0, len, true);
+        return;
+      }
+      if (++n < 12){ setTimeout(go, 500); }
+      else { log('수동 제목: 제목칸 못찾음'); reportManual('title', false, 0, false); }
     })();
   };
 
-  // 수동 본문 입력(상단 '내용 입력' 버튼) — 서식까지 적용, onFilled 은 호출 안 함(사진은 별도 버튼)
+  // 수동 본문 입력(상단 '내용 입력' 버튼) — 서식까지 적용, clear=true(덮어쓰기)
   window.__NB_fillBody = function(payload){
     if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
     var n=0;
@@ -334,15 +350,58 @@ object EditorJs {
       var d = edoc(); closePopups(d);
       var bEl = firstBodyEl(d);
       if (bEl){
-        var ok = typeBody(d, bEl, payload.lines||[]);
+        typeBody(d, bEl, payload.lines||[], true);
         try{ if (payload.segs && payload.segs.length) applyLineSegs(d, payload.segs); }catch(e){}
         try{ if (payload.words && payload.words.length) applyWords(d, payload.words); }catch(e){}
         var paras = bodyParas(d), total=0;
         for (var i=0;i<paras.length;i++) total += (paras[i].textContent||'').length;
-        log('수동 본문입력 '+ok+' 글자='+total+' 문단='+paras.length);
+        log('수동 본문입력 글자='+total+' 문단='+paras.length);
+        reportManual('body', total>0, total, true);
         return;
       }
-      if (++n < 12){ setTimeout(go, 500); } else log('수동 본문: 본문칸 못찾음');
+      if (++n < 12){ setTimeout(go, 500); }
+      else { log('수동 본문: 본문칸 못찾음'); reportManual('body', false, 0, false); }
+    })();
+  };
+
+  // 제목 붙여넣기(append) — 기존 내용 지우지 않고 커서 끝에 추가
+  window.__NB_pasteTitle = function(payload){
+    if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
+    var n=0;
+    (function go(){
+      var d = edoc(); closePopups(d);
+      var tEl = titleEl(d);
+      if (tEl){
+        typeTitle(d, tEl, payload.title||'', false);
+        var len = (tEl.textContent||'').length;
+        log('제목 붙여넣기 글자='+len);
+        reportManual('titlePaste', len>0, len, true);
+        return;
+      }
+      if (++n < 12){ setTimeout(go, 500); }
+      else { log('제목 붙여넣기: 제목칸 못찾음'); reportManual('titlePaste', false, 0, false); }
+    })();
+  };
+
+  // 본문 붙여넣기(append) — 기존 내용 지우지 않고 커서 끝에 추가
+  window.__NB_pasteBody = function(payload){
+    if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
+    var n=0;
+    (function go(){
+      var d = edoc(); closePopups(d);
+      var bEl = firstBodyEl(d);
+      if (bEl){
+        typeBody(d, bEl, payload.lines||[], false);
+        try{ if (payload.segs && payload.segs.length) applyLineSegs(d, payload.segs); }catch(e){}
+        try{ if (payload.words && payload.words.length) applyWords(d, payload.words); }catch(e){}
+        var paras = bodyParas(d), total=0;
+        for (var i=0;i<paras.length;i++) total += (paras[i].textContent||'').length;
+        log('본문 붙여넣기 글자='+total+' 문단='+paras.length);
+        reportManual('bodyPaste', total>0, total, true);
+        return;
+      }
+      if (++n < 12){ setTimeout(go, 500); }
+      else { log('본문 붙여넣기: 본문칸 못찾음'); reportManual('bodyPaste', false, 0, false); }
     })();
   };
 

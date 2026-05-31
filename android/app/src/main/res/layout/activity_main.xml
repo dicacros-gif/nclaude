@@ -111,12 +111,13 @@
             android:text="▼ 맨 아래" android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- 수동 입력 바: 자동 입력 실패 대비(포스팅 중에만 표시) -->
+    <!-- 수동 입력 바: 자동 입력 실패 대비(포스팅 중에만 표시).
+         각 줄 = [에디터에 직접 입력] · [클립보드 복사] · [에디터에 붙여넣기 추가] -->
     <LinearLayout
         android:id="@+id/manualBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:background="#1a1320"
         android:paddingStart="6dp"
         android:paddingEnd="6dp"
@@ -124,25 +125,69 @@
         android:paddingBottom="4dp"
         android:visibility="gone">
 
-        <Button android:id="@+id/btnFillTitle"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:minWidth="0dp"
-            android:text="제목 입력" android:textSize="12sp"
-            android:paddingStart="2dp" android:paddingEnd="2dp" />
+        <!-- 제목 줄 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
 
-        <Button android:id="@+id/btnFillBody"
-            style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
-            android:text="내용 입력" android:textSize="12sp"
-            android:paddingStart="2dp" android:paddingEnd="2dp" />
+            <Button android:id="@+id/btnFillTitle"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:minWidth="0dp"
+                android:text="제목 입력" android:textSize="11sp"
+                android:paddingStart="2dp" android:paddingEnd="2dp" />
 
+            <Button android:id="@+id/btnTitleCopy"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:text="제목 복사" android:textSize="11sp"
+                android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+            <Button android:id="@+id/btnTitlePaste"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:text="제목 붙여넣기" android:textSize="11sp"
+                android:paddingStart="2dp" android:paddingEnd="2dp" />
+        </LinearLayout>
+
+        <!-- 내용 줄 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button android:id="@+id/btnFillBody"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:minWidth="0dp"
+                android:text="내용 입력" android:textSize="11sp"
+                android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+            <Button android:id="@+id/btnBodyCopy"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:text="내용 복사" android:textSize="11sp"
+                android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+            <Button android:id="@+id/btnBodyPaste"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:text="내용 붙여넣기" android:textSize="11sp"
+                android:paddingStart="2dp" android:paddingEnd="2dp" />
+        </LinearLayout>
+
+        <!-- 사진 줄 -->
         <Button android:id="@+id/btnFillPhoto"
             style="?attr/materialButtonOutlinedStyle"
-            android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
-            android:text="사진 입력" android:textSize="12sp"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:minWidth="0dp"
+            android:text="🖼 사진 입력(파일 선택창)" android:textSize="11sp"
             android:paddingStart="2dp" android:paddingEnd="2dp" />
     </LinearLayout>
 
