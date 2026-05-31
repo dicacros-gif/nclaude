@@ -114,7 +114,7 @@ object SnsShare {
             "x" -> buildX(blocks, emo, tags, resolvedUrl)
             "instagram" -> buildInstagram(blocks, emo, cta, tags, resolvedUrl, hook)
             "threads" -> buildThreads(blocks, emo, cta, tags, resolvedUrl, hook)
-            "linkedin" -> buildLinkedIn(blocks, cta, tags, resolvedUrl)
+            "linkedin" -> buildLinkedIn(blocks, cta, tags, resolvedUrl, stripLeadEmoji(hook).trim())
             else -> buildFacebook(blocks, emo, cta, resolvedUrl, hook)
         }
     }
@@ -146,9 +146,12 @@ object SnsShare {
     }
 
     private fun buildLinkedIn(
-        blocks: List<String>, cta: String, tags: List<String>, url: String
+        blocks: List<String>, cta: String, tags: List<String>, url: String, hook: String
     ): String {
-        val sb = StringBuilder(blocks.joinToString("\n\n"))
+        // 링크드인은 이모지 없이 전문적으로 — 후킹 문구는 이모지를 떼고 맨 앞 한 줄로
+        val sb = StringBuilder()
+        if (hook.isNotBlank()) sb.append(hook).append("\n\n")
+        sb.append(blocks.joinToString("\n\n"))
         if (url.isNotBlank()) sb.append("\n\n").append(cta).append('\n').append(url)
         if (tags.isNotEmpty()) sb.append("\n\n").append(tags.take(5).joinToString(" "))
         return sb.toString()

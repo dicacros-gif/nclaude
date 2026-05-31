@@ -288,12 +288,13 @@ class MainActivity : AppCompatActivity() {
                 val e = s + w.length
                 sb.setSpan(StyleSpan(Typeface.BOLD), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 if (rich) {
+                    // 단어마다 파스텔 색이 달라지게(연녹/연분홍/연파랑/연주황) — 미리보기도 본문 강조와 동일
                     runCatching {
-                        sb.setSpan(ForegroundColorSpan(Color.parseColor(Formatter.WORD_COLOR)),
+                        sb.setSpan(ForegroundColorSpan(Color.parseColor(Formatter.wordFg(w))),
                             s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     }
                     runCatching {
-                        sb.setSpan(BackgroundColorSpan(Color.parseColor(Formatter.WORD_HILITE)),
+                        sb.setSpan(BackgroundColorSpan(Color.parseColor(Formatter.wordBg(w))),
                             s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     }
                 }
@@ -437,6 +438,11 @@ class MainActivity : AppCompatActivity() {
         })
 
         enableInnerScroll(contentInput)
+        // 미리보기 박스는 5줄 고정(maxLines) → 내부 세로 스크롤 가능하게
+        previewBold.movementMethod = android.text.method.ScrollingMovementMethod()
+        previewRich.movementMethod = android.text.method.ScrollingMovementMethod()
+        enableInnerScroll(previewBold)
+        enableInnerScroll(previewRich)
         refreshPreviews()
     }
 

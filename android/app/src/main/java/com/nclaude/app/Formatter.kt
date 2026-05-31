@@ -26,8 +26,25 @@ object Formatter {
         val size: Int? = null
     )
 
-    const val WORD_HILITE = "#fff34f"   // 중요 단어 노랑 형광
-    const val WORD_COLOR = "#d6336c"    // 중요 단어 글자색(자홍)
+    const val WORD_HILITE = "#fff34f"   // (구) 중요 단어 노랑 형광 — JS 경로 호환용
+    const val WORD_COLOR = "#d6336c"    // (구) 중요 단어 글자색 — JS 경로 호환용
+
+    // 소제목: 연한 노랑 형광(요청 — 더 연하게)
+    const val HILITE_SUBHEAD = "#fff3b0"
+    // 핵심 문장: 연한 보라 배경 + 진보라 글자
+    const val SENT_BG = "#ede9fe"
+    const val SENT_FG = "#5b21b6"
+    // 중요 단어: 파스텔 회전(연녹/연분홍/연파랑/연주황) — 단어마다 색이 달라짐
+    val WORD_BG = listOf("#dcfce7", "#fce7f3", "#dbeafe", "#ffe8cc")
+    val WORD_FG = listOf("#166534", "#9d174d", "#1e40af", "#9a3412")
+
+    private fun wordPaletteIndex(word: String): Int {
+        val i = IMPORTANT_WORDS.indexOf(word)
+        val base = if (i >= 0) i else (word.hashCode() and 0x7fffffff)
+        return base % WORD_BG.size
+    }
+    fun wordBg(word: String) = WORD_BG[wordPaletteIndex(word)]
+    fun wordFg(word: String) = WORD_FG[wordPaletteIndex(word)]
 
     // 핵심 '문장' 판정 키워드
     private val HILITE_KEYWORDS = listOf(
@@ -44,11 +61,11 @@ object Formatter {
 
     private fun classify(line: String, isFirst: Boolean): Seg? = when {
         isDivider(line) -> null
-        isFirst -> Seg(line, true, "#1d4ed8", null, 18)
-        line.startsWith("❝") || isHead(line) -> Seg(line, true, "#222222", WORD_HILITE, 17)
+        isFirst -> Seg(line, true, "#1d4ed8", null, 19)
+        line.startsWith("❝") || isHead(line) -> Seg(line, true, "#111111", HILITE_SUBHEAD, 22)
         line.startsWith("#") -> Seg(line, false, "#2563eb", null)
         line.length <= 60 && HILITE_KEYWORDS.any { line.contains(it) } ->
-            Seg(line, true, "#d6336c", "#fff3bf")
+            Seg(line, true, SENT_FG, SENT_BG)
         else -> null
     }
 
@@ -186,9 +203,9 @@ object Formatter {
             val seg = classify(ln, isFirst)
             val inner = inlineBold(esc(ln))
             if (seg != null && seg.bold) {
-                sb.append("<p style=\"line-height:1.7\"><b>").append(inner).append("</b></p>")
+                sb.append("<p><strong style=\"font-weight:700\">").append(inner).append("</strong></p>")
             } else {
-                sb.append("<p style=\"line-height:1.7\">").append(inner).append("</p>")
+                sb.append("<p>").append(inner).append("</p>")
             }
         }
         return sb.toString()
@@ -196,7 +213,8 @@ object Formatter {
 
     private fun inlineBold(escaped: String): String {
         var out = escaped
-        for (w in IMPORTANT_WORDS) if (out.contains(w)) out = out.replace(w, "<b>$w</b>")
+        for (w in IMPORTANT_WORDS) if (out.contains(w))
+            out = out.replace(w, "<strong style=\"font-weight:700\">$w</strong>")
         return out
     }
 
@@ -226,24 +244,26 @@ object Formatter {
         return sb.toString()
     }
 
-    /** 한 줄 전체에 줄 서식(굵게/글자색/형광)을 최소 태그로 감싼다. */
+    /** 한 줄 전체에 줄 서식(굵게/글자색/형광)을 감싼다. 볼드는 태그+인라인 두 경로로 보장. */
     private fun naverSpan(escaped: String, seg: Seg): String {
         val style = buildString {
+            if (seg.bold) append("font-weight:700;")
             seg.color?.let { append("color:").append(it).append(";") }
             seg.hilite?.let { append("background-color:").append(it).append(";") }
         }
         var inner = if (style.isNotEmpty()) "<span style=\"$style\">$escaped</span>" else escaped
-        if (seg.bold) inner = "<b>$inner</b>"
+        if (seg.bold) inner = "<strong>$inner</strong>"
         return inner
     }
 
-    /** 서식 없는 줄: 중요 단어만 굵게+글자색+형광(최소 태그)으로 인라인 강조. */
+    /** 서식 없는 줄: 중요 단어를 단어별 파스텔(연녹/연분홍/연파랑/연주황)로 인라인 강조. */
     private fun inlineNaver(escaped: String): String {
         var out = escaped
         for (w in IMPORTANT_WORDS) {
             if (out.contains(w)) out = out.replace(
                 w,
-                "<b><span style=\"color:$WORD_COLOR;background-color:$WORD_HILITE\">$w</span></b>"
+                "<strong><span style=\"font-weight:700;color:${wordFg(w)};" +
+                    "background-color:${wordBg(w)};\">$w</span></strong>"
             )
         }
         return out
