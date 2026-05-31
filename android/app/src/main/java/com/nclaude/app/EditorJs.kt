@@ -145,12 +145,18 @@ object EditorJs {
         try{ if (d.execCommand('insertText',false,ln)) any=true; }catch(e){}
       }
     }
-    if (!any || plainLen(el)===0){           // 폴백: 문단 HTML 직접 주입 + input 이벤트
+    if (!any || plainLen(el)===0){           // 폴백 1: execCommand insertHTML
       try{
         var html='';
         for (var j=0;j<lines.length;j++){ var L=lines[j]||''; html += '<p>'+(L?esc(L):'<br>')+'</p>'; }
-        if (clear===false){ el.innerHTML = (el.innerHTML||'') + html; }
-        else { el.innerHTML = html; }
+        focusHost(d, el);
+        if (clear===false){ caretEnd(d, el); } else { selectAll(d, el); }
+        var okH=false;
+        try{ okH = d.execCommand('insertHTML', false, html); }catch(e){ okH=false; }
+        if (!okH || plainLen(el)===0){        // 폴백 2: innerHTML 직접 주입 + input 이벤트
+          if (clear===false){ el.innerHTML = (el.innerHTML||'') + html; }
+          else { el.innerHTML = html; }
+        }
         var IE2 = win(d).InputEvent || win(d).Event;
         el.dispatchEvent(new IE2('input',{bubbles:true}));
         any = plainLen(el)>0;

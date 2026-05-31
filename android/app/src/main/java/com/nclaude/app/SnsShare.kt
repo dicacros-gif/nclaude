@@ -30,20 +30,50 @@ object SnsShare {
     // CTR 후킹 문구 — 기기에서 자유롭게 조정 가능
     private const val CTA = "👇 전체 내용 보기"
 
+    // 호기심 자극 오프닝/티저/클로징(‘다시 생성’ 누를 때마다 다른 조합으로 회전)
+    private val OPENERS = listOf(
+        "🔥 이거 모르면 진짜 손해예요",
+        "💡 아무도 안 알려주던 꿀팁인데요",
+        "😮 저만 몰랐던 거 아니죠?",
+        "👀 스크롤 멈추고 이것만 보세요",
+        "✅ 지금 저장 안 하면 분명 또 검색합니다",
+        "⏱ 딱 1분이면 충분해요"
+    )
+    private val TEASERS = listOf(
+        "끝까지 보면 무릎 탁 치실 거예요.",
+        "핵심만 딱 정리해놨어요.",
+        "다들 궁금해하던 바로 그 내용입니다.",
+        "이거 하나로 고민 끝나요.",
+        "읽고 나면 생각이 바뀝니다.",
+        "안 본 사람만 손해예요."
+    )
+    private val CLOSERS = listOf(
+        "👇 전체 내용은 여기서 확인하세요 (안 보면 손해)",
+        "👇 진짜 중요한 건 글 안에 다 풀어놨어요",
+        "👇 결과가 궁금하면 지금 클릭",
+        "👇 자세한 건 본문에서 (3분이면 끝)",
+        "👇 지금 바로 확인하세요 👇",
+        "👇 놓치면 후회하는 그 정보, 여기 있어요"
+    )
+
     private val URL_RE = Regex("https?://\\S+")
 
     /**
-     * 후킹 텍스트 생성.
-     *  입력  "A? B? C"  +  url
-     *  출력  "A?\n\nB?\n\nC\n\n\n👇 전체 내용 보기\n{url}"
-     * 물음표/느낌표 경계로 블록을 나눠 줄바꿈, CTA 한 줄 + URL 을 끝에 붙인다.
+     * 후킹 텍스트 생성(호기심 자극형, 길게).
+     *  구조:  [오프닝]  +  본문 블록(물음표/느낌표 경계 줄바꿈)  +  [티저]  +  [클로징]  +  URL
+     *  variant 이 바뀌면 오프닝/티저/클로징 조합이 회전 → ‘다시 생성’이 매번 다르게 동작.
      */
-    fun buildHook(source: String, url: String): String {
+    fun buildHook(source: String, url: String, variant: Int = 0): String {
         val resolvedUrl = if (url.isNotBlank()) url else extractUrl(source)
         val lead = leadText(source, resolvedUrl)
         val blocks = splitHookBlocks(lead)
+        val v = if (variant < 0) -variant else variant
+        val opener = OPENERS[v % OPENERS.size]
+        val teaser = TEASERS[v % TEASERS.size]
+        val closer = CLOSERS[v % CLOSERS.size]
 
         val sb = StringBuilder()
+        sb.append(opener).append("\n\n")
         if (blocks.isEmpty()) {
             if (lead.isNotBlank()) sb.append(lead)
         } else {
@@ -52,10 +82,11 @@ object SnsShare {
                 sb.append(b)
             }
         }
+        sb.append("\n\n").append(teaser)
         if (resolvedUrl.isNotBlank()) {
-            if (sb.isNotEmpty()) sb.append("\n\n\n")
-            if (CTA.isNotBlank()) sb.append(CTA).append('\n')
-            sb.append(resolvedUrl)
+            sb.append("\n\n\n").append(closer).append('\n').append(resolvedUrl)
+        } else {
+            sb.append("\n\n").append(closer)
         }
         return sb.toString()
     }
@@ -68,8 +99,12 @@ object SnsShare {
      * 동일하게 블록 분리가 되도록(= 재변환 멱등) 공백으로 합치는 게 핵심.
      */
     private fun leadText(source: String, url: String): String {
+        val decor = (OPENERS + TEASERS + CLOSERS).toHashSet()
         val parts = source.split('\n').map { it.trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("http") && it != CTA }
+            .filter {
+                it.isNotEmpty() && !it.startsWith("http") && it != CTA &&
+                    it !in decor && !it.startsWith("👇")
+            }
         if (parts.isNotEmpty()) return parts.joinToString(" ")
         return if (url.isNotBlank()) source.replace(url, "").trim() else source.trim()
     }

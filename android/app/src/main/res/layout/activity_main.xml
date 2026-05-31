@@ -72,19 +72,50 @@
         android:textSize="12sp"
         android:visibility="gone" />
 
-    <!-- 디버그 로그(포스팅 중에도 보임): 어떤 셀렉터/전략이 동작했는지 기기에서 확인 -->
+    <!-- 디버그 로그(포스팅 중에도 보임): 세로로 작게(접기 가능) -->
     <TextView
         android:id="@+id/debugLog"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="6dp"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
         android:background="#0a0a0a"
         android:fontFamily="monospace"
         android:textColor="#5fae5f"
-        android:textSize="9sp"
-        android:maxLines="7"
+        android:textSize="8sp"
+        android:maxLines="3"
         android:scrollbars="vertical"
         android:visibility="gone" />
+
+    <!-- 포스팅 중 상단 도구바: 접기/펼치기 + 사용법(포스팅 중에만 표시) -->
+    <LinearLayout
+        android:id="@+id/postBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#121212"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:visibility="gone">
+
+        <Button android:id="@+id/btnCollapseChrome"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:minWidth="0dp"
+            android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
+            android:text="▾ 입력도구·로그 접기" android:textSize="11sp" />
+
+        <Button android:id="@+id/btnGuide"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
+            android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
+            android:text="❓ 사용법(복사·붙여넣기)" android:textSize="11sp" />
+    </LinearLayout>
 
     <!-- 홈 화면 빠른 이동: 폼이 길어서 맨 위/맨 아래로 점프 -->
     <LinearLayout
@@ -209,12 +240,34 @@
                 android:orientation="vertical"
                 android:padding="12dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="제목 (자동 생성 · 수정 가능)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="제목 (자동 생성 · 수정 가능)"
+                        android:textColor="#9a9a9a"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnCopyTitleHome"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="📋 복사"
+                        android:textSize="11sp" />
+                </LinearLayout>
 
                 <EditText
                     android:id="@+id/titleInput"

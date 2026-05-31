@@ -51,12 +51,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var snsInput: EditText
     private lateinit var navBar: LinearLayout
     private lateinit var manualBar: LinearLayout
+    private lateinit var postBar: LinearLayout
+    private lateinit var btnCollapseChrome: Button
     private lateinit var hookOutput: EditText
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
     private var titleEdited = false
     private var suppressTitleWatcher = false
+    private var chromeCollapsed = false      // 포스팅 중 상단 도구·로그 접힘 상태
+    private var guideShown = false           // 포스팅 1회당 사용법 안내 1번만 자동 표시
+    private var hookVariant = 0              // ‘다시 생성’ 누를 때마다 후킹 조합 회전
 
     // 포스팅 상태
     private var posting = false
@@ -105,6 +110,8 @@ class MainActivity : AppCompatActivity() {
         snsInput = findViewById(R.id.snsInput)
         navBar = findViewById(R.id.navBar)
         manualBar = findViewById(R.id.manualBar)
+        postBar = findViewById(R.id.postBar)
+        btnCollapseChrome = findViewById(R.id.btnCollapseChrome)
         hookOutput = findViewById(R.id.hookOutput)
 
         setupWeb()
@@ -132,6 +139,39 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnBodyCopy).setOnClickListener { copyBodyToClipboard() }
         findViewById<Button>(R.id.btnBodyPaste).setOnClickListener { manualPaste(title = false) }
         findViewById<Button>(R.id.btnFillPhoto).setOnClickListener { manualPhoto() }
+        btnCollapseChrome.setOnClickListener {
+            chromeCollapsed = !chromeCollapsed
+            applyChromeCollapsed()
+        }
+        findViewById<Button>(R.id.btnGuide).setOnClickListener { showManualGuide() }
+    }
+
+    /** 포스팅 중 상단 도구·로그를 접거나 펼친다(웹뷰 공간 확보). */
+    private fun applyChromeCollapsed() {
+        if (!posting) return
+        debugLog.visibility = if (chromeCollapsed) View.GONE else View.VISIBLE
+        manualBar.visibility = if (chromeCollapsed) View.GONE else View.VISIBLE
+        btnCollapseChrome.text =
+            if (chromeCollapsed) "▸ 입력도구·로그 펼치기" else "▾ 입력도구·로그 접기"
+    }
+
+    /** 자동/수동 입력이 안 될 때 ‘어디를 눌러 복사·붙여넣기’ 하는지 단계별 안내 */
+    private fun showManualGuide() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("수동 입력 가이드 (복사 → 붙여넣기)")
+            .setMessage(
+                "자동 입력이 안 되면 복사 → 붙여넣기가 가장 확실해요.\n\n" +
+                    "① 상단 '제목 복사'를 누르세요\n" +
+                    "    → 제목이 클립보드에 복사됩니다\n" +
+                    "② 네이버 '제목' 칸을 손가락으로 꾹(1~2초) 길게 누르세요\n" +
+                    "③ 떠오르는 메뉴에서 '붙여넣기'를 누르세요\n\n" +
+                    "④ 상단 '내용 복사'를 누르고\n" +
+                    "⑤ 네이버 '본문' 칸을 길게 눌러 '붙여넣기'\n\n" +
+                    "⑥ 사진은 '사진 입력' 버튼으로 올리세요\n\n" +
+                    "※ 앱의 '제목 붙여넣기/내용 붙여넣기' 버튼은 에디터에 바로 넣어줘요(되면 더 편함)."
+            )
+            .setPositiveButton("확인", null)
+            .show()
     }
 
     /** 제목을 일반 텍스트로 클립보드에 복사 — 네이버 제목칸을 길게 눌러 붙여넣기 */
@@ -169,10 +209,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 포스팅 중이면 수동 입력 바, 아니면 폼 이동 바를 보여준다. */
+    /** 포스팅 중이면 수동 입력 바 + 접기/사용법 바, 아니면 폼 이동 바를 보여준다. */
     private fun showPostingChrome(posting: Boolean) {
-        manualBar.visibility = if (posting) View.VISIBLE else View.GONE
         navBar.visibility = if (posting) View.GONE else View.VISIBLE
+        postBar.visibility = if (posting) View.VISIBLE else View.GONE
+        if (posting) {
+            chromeCollapsed = false
+            applyChromeCollapsed()
+        } else {
+            manualBar.visibility = View.GONE
+            debugLog.visibility = View.GONE
+        }
     }
 
     /** 자동 입력이 실패했을 때 사용자가 직접 누르는 제목/내용 단독 입력 */
@@ -241,6 +288,7 @@ class MainActivity : AppCompatActivity() {
             titleEdited = false
             regenHook()
         }
+        findViewById<Button>(R.id.btnCopyTitleHome).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnPickPhotos).setOnClickListener {
             pickPhotos.launch(
                 PickVisualMediaRequest.Builder()
@@ -391,6 +439,7 @@ class MainActivity : AppCompatActivity() {
         publishedUrl = null
         photoSeq = false
         photoFeed = null
+        guideShown = false
         stageClipboardHtml(content)          // 자동 입력 실패 대비 '서식 포함 붙여넣기' 준비
         logLines.clear(); debugLog.text = ""
         debugLog.visibility = View.VISIBLE
@@ -473,8 +522,9 @@ class MainActivity : AppCompatActivity() {
         // → '사진 입력 중' 같은 잘못된 진행 메시지를 막고, 수동 복사/붙여넣기를 안내.
         if (bodyLen < 5) {
             progress.visibility = View.GONE
-            setStatus("자동 입력이 안 됐어요 — 상단 '제목 복사'/'내용 복사' 후 에디터칸을 길게 눌러 붙여넣기 하세요")
+            setStatus("자동 입력이 안 됐어요 — 상단 '내용 복사' 후 본문칸을 길게 눌러 붙여넣기 (❓사용법)")
             dbg("본문 ${bodyLen}자 → 사진 단계 중단, 수동 입력 안내")
+            if (!guideShown) { showManualGuide(); guideShown = true }
             return
         }
 
@@ -506,8 +556,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             val isTitle = kind.startsWith("title")
             val copyBtn = if (isTitle) "제목 복사" else "내용 복사"
-            setStatus("$label 실패 — '$copyBtn' 누른 뒤 에디터칸을 길게 눌러 붙여넣기 하세요")
+            setStatus("$label 실패 — '$copyBtn' 누른 뒤 에디터칸을 길게 눌러 붙여넣기 하세요 (❓사용법)")
             dbg("$label 실패(0자) → 복사/붙여넣기 안내")
+            if (!guideShown) { showManualGuide(); guideShown = true }
         }
     }
 
@@ -584,7 +635,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnTh).setOnClickListener { shareOne("threads") }
         findViewById<Button>(R.id.btnX).setOnClickListener { shareOne("x") }
         findViewById<Button>(R.id.btnPostAll).setOnClickListener { shareAll() }
-        findViewById<Button>(R.id.btnGenHook).setOnClickListener { regenHook(force = true) }
+        findViewById<Button>(R.id.btnGenHook).setOnClickListener {
+            hookVariant++                       // 매번 다른 후킹 조합으로 회전
+            regenHook(force = true)
+            toast("후킹 문구를 새로 생성했어요")
+        }
         findViewById<Button>(R.id.btnCopyHook).setOnClickListener { copyHookOutput() }
 
         // 공유 원문이 바뀌면 후킹 메시지 자동 변환(제목/URL 변경은 제목 watcher·onPublished 에서 갱신)
@@ -624,7 +679,7 @@ class MainActivity : AppCompatActivity() {
         }
         val urlInSource = Regex("https?://\\S+").find(source)?.value
         val url = urlInSource ?: publishedUrl?.let { mobileShareUrl(it) } ?: ""
-        hookOutput.setText(SnsShare.buildHook(source, url))
+        hookOutput.setText(SnsShare.buildHook(source, url, hookVariant))
     }
 
     /** 후킹 메시지 박스의 현재 문구를 클립보드로 복사 */
