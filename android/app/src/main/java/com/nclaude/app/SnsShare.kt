@@ -30,63 +30,49 @@ object SnsShare {
     // CTR 후킹 문구 — 기기에서 자유롭게 조정 가능
     private const val CTA = "👇 전체 내용 보기"
 
-    // 호기심 자극 오프닝/티저/클로징(‘다시 생성’ 누를 때마다 다른 조합으로 회전)
-    private val OPENERS = listOf(
-        "🔥 이거 모르면 진짜 손해예요",
-        "💡 아무도 안 알려주던 꿀팁인데요",
-        "😮 저만 몰랐던 거 아니죠?",
-        "👀 스크롤 멈추고 이것만 보세요",
-        "✅ 지금 저장 안 하면 분명 또 검색합니다",
-        "⏱ 딱 1분이면 충분해요"
+    // 각 핵심 줄 앞에 붙일 이모지 세트(‘다시 생성’ 때마다 세트가 회전 → 글 중간중간 이모지)
+    private val MID_SETS = listOf(
+        listOf("🔥", "✨", "💡", "👀", "✅", "🎯"),
+        listOf("💥", "👉", "⭐", "🙌", "📌", "❤️"),
+        listOf("😮", "🚀", "💬", "✔️", "👍", "🌟"),
+        listOf("⚡", "💪", "🎁", "📣", "🤩", "🙆")
     )
-    private val TEASERS = listOf(
-        "끝까지 보면 무릎 탁 치실 거예요.",
-        "핵심만 딱 정리해놨어요.",
-        "다들 궁금해하던 바로 그 내용입니다.",
-        "이거 하나로 고민 끝나요.",
-        "읽고 나면 생각이 바뀝니다.",
-        "안 본 사람만 손해예요."
-    )
-    private val CLOSERS = listOf(
-        "👇 전체 내용은 여기서 확인하세요 (안 보면 손해)",
-        "👇 진짜 중요한 건 글 안에 다 풀어놨어요",
-        "👇 결과가 궁금하면 지금 클릭",
-        "👇 자세한 건 본문에서 (3분이면 끝)",
-        "👇 지금 바로 확인하세요 👇",
-        "👇 놓치면 후회하는 그 정보, 여기 있어요"
+    // 짧은 클릭 유도 한 줄(회전)
+    private val CTAS = listOf(
+        "👇 전체 내용 보기",
+        "👉 자세히 보러가기",
+        "👀 지금 확인하세요",
+        "🔗 본문에서 계속",
+        "👇 놓치지 마세요"
     )
 
     private val URL_RE = Regex("https?://\\S+")
 
     /**
-     * 후킹 텍스트 생성(호기심 자극형, 길게).
-     *  구조:  [오프닝]  +  본문 블록(물음표/느낌표 경계 줄바꿈)  +  [티저]  +  [클로징]  +  URL
-     *  variant 이 바뀌면 오프닝/티저/클로징 조합이 회전 → ‘다시 생성’이 매번 다르게 동작.
+     * 후킹 텍스트 생성(핵심만, 짧게 + 줄마다 이모지).
+     *  구조:  {이모지} 핵심줄1 / {이모지} 핵심줄2 …  +  {짧은 CTA}  +  URL
+     *  variant 가 바뀌면 이모지 세트 + CTA 가 회전 → ‘다시 생성’이 매번 다르게 동작.
      */
     fun buildHook(source: String, url: String, variant: Int = 0): String {
         val resolvedUrl = if (url.isNotBlank()) url else extractUrl(source)
         val lead = leadText(source, resolvedUrl)
         val blocks = splitHookBlocks(lead)
         val v = if (variant < 0) -variant else variant
-        val opener = OPENERS[v % OPENERS.size]
-        val teaser = TEASERS[v % TEASERS.size]
-        val closer = CLOSERS[v % CLOSERS.size]
+        val emo = MID_SETS[v % MID_SETS.size]
+        val cta = CTAS[v % CTAS.size]
 
         val sb = StringBuilder()
-        sb.append(opener).append("\n\n")
         if (blocks.isEmpty()) {
-            if (lead.isNotBlank()) sb.append(lead)
+            if (lead.isNotBlank()) sb.append(emo[0]).append(' ').append(lead)
         } else {
             for ((i, b) in blocks.withIndex()) {
-                if (i > 0) sb.append("\n\n")
-                sb.append(b)
+                if (i > 0) sb.append('\n')
+                sb.append(emo[i % emo.size]).append(' ').append(b)
             }
         }
-        sb.append("\n\n").append(teaser)
         if (resolvedUrl.isNotBlank()) {
-            sb.append("\n\n\n").append(closer).append('\n').append(resolvedUrl)
-        } else {
-            sb.append("\n\n").append(closer)
+            if (sb.isNotEmpty()) sb.append("\n\n")
+            sb.append(cta).append('\n').append(resolvedUrl)
         }
         return sb.toString()
     }
@@ -99,14 +85,35 @@ object SnsShare {
      * 동일하게 블록 분리가 되도록(= 재변환 멱등) 공백으로 합치는 게 핵심.
      */
     private fun leadText(source: String, url: String): String {
-        val decor = (OPENERS + TEASERS + CLOSERS).toHashSet()
+        val ctaSet = (CTAS + CTA).toHashSet()
         val parts = source.split('\n').map { it.trim() }
-            .filter {
-                it.isNotEmpty() && !it.startsWith("http") && it != CTA &&
-                    it !in decor && !it.startsWith("👇")
+            .filter { line ->
+                line.isNotEmpty() && !line.startsWith("http") && line !in ctaSet
             }
+            .map { stripLeadEmoji(it).trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("http") }
         if (parts.isNotEmpty()) return parts.joinToString(" ")
         return if (url.isNotBlank()) source.replace(url, "").trim() else source.trim()
+    }
+
+    /** 줄 맨 앞의 이모지(변형 선택자·ZWJ 포함)와 공백을 제거 → 재변환 시 이모지 중복 방지. */
+    private fun stripLeadEmoji(s: String): String {
+        var i = 0
+        val n = s.length
+        while (i < n) {
+            val c = s[i]
+            when {
+                c == ' ' || c == '\t' -> i++
+                c.code == 0xFE0F || c.code == 0x200D -> i++
+                Character.isHighSurrogate(c) && i + 1 < n && Character.isLowSurrogate(s[i + 1]) -> i += 2
+                c.code in 0x2190..0x21FF -> i++
+                c.code in 0x2300..0x27BF -> i++
+                c.code in 0x2900..0x297F -> i++
+                c.code in 0x2B00..0x2BFF -> i++
+                else -> return s.substring(i)
+            }
+        }
+        return s.substring(i)
     }
 
     /** 물음표/느낌표(전각 포함) 경계로 블록 분리(기호 유지), 마지막 잔여도 블록으로. */

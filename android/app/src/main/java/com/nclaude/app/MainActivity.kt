@@ -370,7 +370,7 @@ class MainActivity : AppCompatActivity() {
     // ---------------------------------------------------------------
     //  WebView / 포스팅
     // ---------------------------------------------------------------
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     private fun setupWeb() {
         val cm = CookieManager.getInstance()
         cm.setAcceptCookie(true)
@@ -388,6 +388,20 @@ class MainActivity : AppCompatActivity() {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         web.addJavascriptInterface(AndroidPoster(), "AndroidPoster")
+
+        // 웹뷰 터치 포커스 버그 보정: 입력창을 탭해도 포커스/키보드/커서가
+        // 안 잡히는 문제 → 탭 시 직접 requestFocus + 터치모드 포커스 허용.
+        // (커서 깜빡임은 하드웨어 가속 필요 → Manifest 에서 명시 활성화)
+        web.isFocusable = true
+        web.isFocusableInTouchMode = true
+        web.setOnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN,
+                android.view.MotionEvent.ACTION_UP ->
+                    if (!v.hasFocus()) v.requestFocus()
+            }
+            false
+        }
 
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
