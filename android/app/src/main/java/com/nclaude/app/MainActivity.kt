@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var accountGroup: MaterialButtonToggleGroup
     private lateinit var debugLog: TextView
     private lateinit var autoPublishSwitch: SwitchCompat
+    private lateinit var snsInput: EditText
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
@@ -97,6 +98,7 @@ class MainActivity : AppCompatActivity() {
         debugLog = findViewById(R.id.debugLog)
         debugLog.movementMethod = android.text.method.ScrollingMovementMethod()
         autoPublishSwitch = findViewById(R.id.autoPublishSwitch)
+        snsInput = findViewById(R.id.snsInput)
 
         setupWeb()
         setupForm()
@@ -383,8 +385,10 @@ class MainActivity : AppCompatActivity() {
         web.visibility = View.GONE
         form.visibility = View.VISIBLE
         postedUrl.text = url
-        setStatus("게시 완료! SNS 공유를 진행하세요")
-        toast("블로그 게시 완료")
+        // '공유하기 복사'를 직접 누르는 대신, 같은 결과(제목+모바일URL)를 자동 생성해 공유칸에 채운다.
+        autofillHook(url)
+        setStatus("게시 완료! 공유 문구가 자동 생성됐어요 — 확인/수정 후 SNS 공유")
+        toast("블로그 게시 완료 · 공유 문구 생성됨")
     }
 
     private fun isEditorUrl(url: String) =
@@ -408,12 +412,38 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnTh).setOnClickListener { shareOne("threads") }
         findViewById<Button>(R.id.btnX).setOnClickListener { shareOne("x") }
         findViewById<Button>(R.id.btnPostAll).setOnClickListener { shareAll() }
+        findViewById<Button>(R.id.btnGenHook).setOnClickListener { autofillHook(publishedUrl) }
     }
 
+    /**
+     * '공유하기 복사' 자동화 대체:
+     * 공유칸이 비었으면 제목, 있으면 그 내용을 원본으로 후킹 문구(블록 줄바꿈 + CTA + 모바일URL)를
+     * 만들어 공유칸에 채운다. buildHook 은 멱등이라 변환된 글을 다시 눌러도 안전하다.
+     */
+    private fun autofillHook(url: String?) {
+        val src = snsInput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: titleInput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: contentInput.text.toString()
+        if (src.isBlank()) { toast("본문이나 공유할 글을 먼저 입력하세요"); return }
+        val murl = url?.let { mobileShareUrl(it) } ?: ""
+        snsInput.setText(SnsShare.buildHook(src, murl))
+        copyHook(snsInput.text.toString())
+        setStatus("공유 문구 생성 완료 — 클립보드에도 복사됨")
+    }
+
+    /** 게시 URL 을 모바일 공유 형식(m.blog.naver.com/{id}/{logNo})으로 변환 */
+    private fun mobileShareUrl(url: String): String {
+        val logNo = Regex("logNo=(\\d+)").find(url)?.groupValues?.get(1)
+            ?: Regex("naver\\.com/[^/]+/(\\d{5,})").find(url)?.groupValues?.get(1)
+        return if (logNo != null) "https://m.blog.naver.com/$currentAccount/$logNo" else url
+    }
+
+    /** 공유에 쓸 텍스트: 공유칸 내용이 있으면 그대로(사용자 편집 존중), 없으면 즉석 생성 */
     private fun hookText(): String {
+        snsInput.text?.toString()?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
         val src = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
             ?: contentInput.text.toString()
-        return SnsShare.buildHook(src, publishedUrl ?: "")
+        return SnsShare.buildHook(src, publishedUrl?.let { mobileShareUrl(it) } ?: "")
     }
 
     private fun copyHook(text: String) {

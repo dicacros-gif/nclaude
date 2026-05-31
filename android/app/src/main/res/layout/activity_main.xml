@@ -253,6 +253,39 @@
                     android:textSize="11sp"
                     android:autoLink="web" />
 
+                <!-- 공유 문구: 포스팅 후 자동 생성(제목+모바일URL → 후킹 블록) · 붙여넣기/수정 가능 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="공유 문구 (자동 생성 · 붙여넣기/수정 가능)"
+                    android:textColor="#9a9a9a"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/snsInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="포스팅 완료 후 자동 생성됩니다.\n네이버 '공유하기 복사' 글을 직접 붙여넣어도 됩니다."
+                    android:textColor="#f0f0f0"
+                    android:textColorHint="#5a5a5a"
+                    android:textSize="13sp"
+                    android:background="#1c1c1c"
+                    android:padding="10dp"
+                    android:layout_marginTop="4dp"
+                    android:gravity="top"
+                    android:minLines="5"
+                    android:inputType="textMultiLine" />
+
+                <Button
+                    android:id="@+id/btnGenHook"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="↻ 후킹 문구 생성/변환"
+                    android:textSize="11sp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

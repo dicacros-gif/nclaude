@@ -40,7 +40,7 @@ object SnsShare {
      */
     fun buildHook(source: String, url: String): String {
         val resolvedUrl = if (url.isNotBlank()) url else extractUrl(source)
-        val lead = leadLine(source, resolvedUrl)
+        val lead = leadText(source, resolvedUrl)
         val blocks = splitHookBlocks(lead)
 
         val sb = StringBuilder()
@@ -62,11 +62,15 @@ object SnsShare {
 
     private fun extractUrl(s: String): String = URL_RE.find(s)?.value ?: ""
 
-    /** URL 줄을 제외한 첫 의미있는 줄(= 보통 제목). 한 줄에 섞여오면 URL 만 제거. */
-    private fun leadLine(source: String, url: String): String {
-        val lines = source.split('\n').map { it.trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("http") }
-        if (lines.isNotEmpty()) return lines.first()
+    /**
+     * URL/CTA 줄을 제외한 의미있는 줄을 모두 모아 한 덩어리로 만든다.
+     * 원문(제목 한 줄 + URL)이든, 이미 후킹 변환된 본문(블록 여러 줄)이든
+     * 동일하게 블록 분리가 되도록(= 재변환 멱등) 공백으로 합치는 게 핵심.
+     */
+    private fun leadText(source: String, url: String): String {
+        val parts = source.split('\n').map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("http") && it != CTA }
+        if (parts.isNotEmpty()) return parts.joinToString(" ")
         return if (url.isNotBlank()) source.replace(url, "").trim() else source.trim()
     }
 
