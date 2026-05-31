@@ -96,19 +96,42 @@ object EditorJs {
     r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);
   }
 
+  function esc(s){ return (''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function plainLen(el){ return (el && el.textContent ? el.textContent : '').replace(/\s/g,'').length; }
+
+  // 문단(.se-text-paragraph)이 직접 editable 이 아닐 때를 대비해 contenteditable 호스트로 포커스
+  function focusHost(d, el){
+    var n = el;
+    while(n && n.getAttribute){
+      if (n.getAttribute('contenteditable')==='true'){ try{ n.focus(); }catch(e){} break; }
+      n = n.parentNode;
+    }
+    try{ el.focus(); }catch(e){}
+  }
+
   function typeTitle(d, el, text){
     if(!el) return false;
-    selectAll(d, el);
+    focusHost(d, el); selectAll(d, el);
     try{ d.execCommand('delete',false,null); }catch(e){}
-    try{ return d.execCommand('insertText',false,text); }catch(e){ return false; }
+    var ok=false;
+    try{ ok = d.execCommand('insertText',false,text); }catch(e){ ok=false; }
+    if (!ok || plainLen(el)===0){            // 폴백: 직접 주입 + input 이벤트
+      try{
+        el.textContent = text;
+        var IE = win(d).InputEvent || win(d).Event;
+        el.dispatchEvent(new IE('input',{bubbles:true}));
+        ok = plainLen(el)>0;
+      }catch(e){}
+    }
+    return ok;
   }
 
   // 줄 단위로 입력해 실제 문단을 생성(줄간격 보존)
   function typeBody(d, el, lines){
     if(!el) return false;
-    selectAll(d, el);
+    focusHost(d, el); selectAll(d, el);
     try{ d.execCommand('delete',false,null); }catch(e){}
-    var ok = true;
+    var any=false;
     for (var i=0;i<lines.length;i++){
       if (i>0){
         try{ if(!d.execCommand('insertParagraph',false,null)) d.execCommand('insertText',false,'\n'); }
@@ -116,10 +139,20 @@ object EditorJs {
       }
       var ln = lines[i] || '';
       if (ln.length){
-        try{ ok = d.execCommand('insertText',false,ln) && ok; }catch(e){ ok=false; }
+        try{ if (d.execCommand('insertText',false,ln)) any=true; }catch(e){}
       }
     }
-    return ok;
+    if (!any || plainLen(el)===0){           // 폴백: 문단 HTML 직접 주입 + input 이벤트
+      try{
+        var html='';
+        for (var j=0;j<lines.length;j++){ var L=lines[j]||''; html += '<p>'+(L?esc(L):'<br>')+'</p>'; }
+        el.innerHTML = html;
+        var IE2 = win(d).InputEvent || win(d).Event;
+        el.dispatchEvent(new IE2('input',{bubbles:true}));
+        any = plainLen(el)>0;
+      }catch(e){}
+    }
+    return any;
   }
 
   // 줄(문단) 통째 서식: 정규화 텍스트가 일치하는 문단을 찾아 적용
@@ -195,12 +228,35 @@ object EditorJs {
       '[data-log="ime.image"]',
       '.se-toolbar-item-image button',
       'button[data-name="image"]',
-      'button[data-name="photo"]'
+      'button[data-name="photo"]',
+      'button[aria-label*="사진"]',
+      'button[aria-label*="이미지"]',
+      'button[title*="사진"]',
+      'button[title*="이미지"]',
+      '.se-toolbar-item-image'
     ];
     for (var i=0;i<sels.length;i++){
       var b = d.querySelector(sels[i]);
       if (b){ try{ b.click(); log('사진버튼 클릭 '+sels[i]); return true; }catch(e){} }
     }
+    // 텍스트/라벨로 한 번 더 탐색
+    var all = d.querySelectorAll('button, a, [role="button"]');
+    for (var k=0;k<all.length;k++){
+      var t = (all[k].textContent||'')+' '+(all[k].getAttribute('aria-label')||'')+' '+(all[k].getAttribute('title')||'');
+      t = t.replace(/\s/g,'');
+      if (t.indexOf('사진')>=0 || t.indexOf('이미지')>=0){
+        try{ all[k].click(); log('사진버튼(텍스트) 클릭'); return true; }catch(e){}
+      }
+    }
+    // 최후: 숨은 파일 input 을 직접 클릭(웹뷰 onShowFileChooser 가 가장 확실히 뜸)
+    var inputs = d.querySelectorAll('input[type=file]');
+    var img = null;
+    for (var fi=0; fi<inputs.length; fi++){
+      var ac = (inputs[fi].getAttribute('accept')||'');
+      if (ac.indexOf('image')>=0){ img = inputs[fi]; break; }
+      if (!img) img = inputs[fi];
+    }
+    if (img){ try{ img.click(); log('파일 input 직접 클릭'); return true; }catch(e){} }
     log('사진버튼 못 찾음');
     return false;
   }
@@ -256,6 +312,38 @@ object EditorJs {
       }
     }
     attempt();
+  };
+
+  // 수동 제목 입력(상단 '제목 입력' 버튼) — 자동 실패 시 단독 호출
+  window.__NB_fillTitle = function(payload){
+    if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
+    var n=0;
+    (function go(){
+      var d = edoc(); closePopups(d);
+      var tEl = titleEl(d);
+      if (tEl){ var ok=typeTitle(d, tEl, payload.title||''); log('수동 제목입력 '+ok); return; }
+      if (++n < 12){ setTimeout(go, 500); } else log('수동 제목: 제목칸 못찾음');
+    })();
+  };
+
+  // 수동 본문 입력(상단 '내용 입력' 버튼) — 서식까지 적용, onFilled 은 호출 안 함(사진은 별도 버튼)
+  window.__NB_fillBody = function(payload){
+    if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
+    var n=0;
+    (function go(){
+      var d = edoc(); closePopups(d);
+      var bEl = firstBodyEl(d);
+      if (bEl){
+        var ok = typeBody(d, bEl, payload.lines||[]);
+        try{ if (payload.segs && payload.segs.length) applyLineSegs(d, payload.segs); }catch(e){}
+        try{ if (payload.words && payload.words.length) applyWords(d, payload.words); }catch(e){}
+        var paras = bodyParas(d), total=0;
+        for (var i=0;i<paras.length;i++) total += (paras[i].textContent||'').length;
+        log('수동 본문입력 '+ok+' 글자='+total+' 문단='+paras.length);
+        return;
+      }
+      if (++n < 12){ setTimeout(go, 500); } else log('수동 본문: 본문칸 못찾음');
+    })();
   };
 
   window.__NB_imageAt = function(idx){

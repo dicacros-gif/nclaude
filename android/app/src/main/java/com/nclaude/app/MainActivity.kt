@@ -49,6 +49,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var debugLog: TextView
     private lateinit var autoPublishSwitch: SwitchCompat
     private lateinit var snsInput: EditText
+    private lateinit var navBar: LinearLayout
+    private lateinit var manualBar: LinearLayout
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
@@ -99,11 +101,66 @@ class MainActivity : AppCompatActivity() {
         debugLog.movementMethod = android.text.method.ScrollingMovementMethod()
         autoPublishSwitch = findViewById(R.id.autoPublishSwitch)
         snsInput = findViewById(R.id.snsInput)
+        navBar = findViewById(R.id.navBar)
+        manualBar = findViewById(R.id.manualBar)
 
         setupWeb()
         setupForm()
         setupSns()
         setupAccounts()
+        setupBars()
+        showPostingChrome(false)
+    }
+
+    // ---------------------------------------------------------------
+    //  상단 바: 폼 빠른 이동(홈) + 수동 입력(포스팅 중, 자동 실패 대비)
+    // ---------------------------------------------------------------
+    private fun setupBars() {
+        findViewById<Button>(R.id.btnScrollTop).setOnClickListener {
+            form.smoothScrollTo(0, 0)
+        }
+        findViewById<Button>(R.id.btnScrollBottom).setOnClickListener {
+            form.post { form.fullScroll(View.FOCUS_DOWN) }
+        }
+        findViewById<Button>(R.id.btnFillTitle).setOnClickListener { manualFill(title = true) }
+        findViewById<Button>(R.id.btnFillBody).setOnClickListener { manualFill(title = false) }
+        findViewById<Button>(R.id.btnFillPhoto).setOnClickListener { manualPhoto() }
+    }
+
+    /** 포스팅 중이면 수동 입력 바, 아니면 폼 이동 바를 보여준다. */
+    private fun showPostingChrome(posting: Boolean) {
+        manualBar.visibility = if (posting) View.VISIBLE else View.GONE
+        navBar.visibility = if (posting) View.GONE else View.VISIBLE
+    }
+
+    /** 자동 입력이 실패했을 때 사용자가 직접 누르는 제목/내용 단독 입력 */
+    private fun manualFill(title: Boolean) {
+        if (web.visibility != View.VISIBLE) {
+            toast("먼저 '블로그 포스팅'으로 글쓰기 페이지를 여세요"); return
+        }
+        val payload: JSONObject =
+            Formatter.payload(titleInput.text.toString(), contentInput.text.toString())
+        val fn = if (title) "__NB_fillTitle" else "__NB_fillBody"
+        setStatus(if (title) "제목 수동 입력 시도…" else "내용 수동 입력 시도…")
+        dbg("수동 호출 $fn")
+        web.evaluateJavascript(EditorJs.SCRIPT) {
+            web.evaluateJavascript("window.$fn($payload)", null)
+        }
+    }
+
+    /** 자동 사진 삽입이 실패했을 때 선택한 사진 전체로 파일 선택창을 직접 띄운다. */
+    private fun manualPhoto() {
+        if (web.visibility != View.VISIBLE) {
+            toast("먼저 '블로그 포스팅'으로 글쓰기 페이지를 여세요"); return
+        }
+        if (selectedPhotos.isEmpty()) { toast("먼저 '사진 선택'으로 사진을 고르세요"); return }
+        photoSeq = false   // 순차 모드 해제 → onShowFileChooser 가 선택한 전체를 공급
+        photoFeed = null
+        setStatus("사진 수동 업로드 — 파일 선택창 호출")
+        dbg("수동 사진 호출 __NB_images (${selectedPhotos.size}장)")
+        web.evaluateJavascript(EditorJs.SCRIPT) {
+            web.evaluateJavascript("window.__NB_images()", null)
+        }
     }
 
     // ---------------------------------------------------------------
@@ -135,6 +192,7 @@ class MainActivity : AppCompatActivity() {
     // ---------------------------------------------------------------
     //  입력 폼
     // ---------------------------------------------------------------
+    @SuppressLint("ClickableViewAccessibility")
     private fun setupForm() {
         findViewById<Button>(R.id.btnGenTitle).setOnClickListener {
             titleInput.setText(TitleGen.generate(contentInput.text.toString()))
@@ -163,6 +221,17 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
         titleInput.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) titleEdited = true }
+
+        // 본문칸은 5줄 고정 — 내부 스크롤이 바깥 ScrollView 에 가로채이지 않게
+        contentInput.setOnTouchListener { v, ev ->
+            v.parent?.requestDisallowInterceptTouchEvent(true)
+            if (ev.actionMasked == android.view.MotionEvent.ACTION_UP ||
+                ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
+            ) {
+                v.parent?.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
     }
 
     private fun renderPhotos() {
@@ -263,6 +332,7 @@ class MainActivity : AppCompatActivity() {
         debugLog.visibility = View.VISIBLE
         form.visibility = View.GONE
         web.visibility = View.VISIBLE
+        showPostingChrome(true)
         progress.visibility = View.VISIBLE
         setStatus("${currentAccount} 글쓰기 페이지 여는 중…")
         dbg("포스팅 시작 · 계정 ${currentAccount}")
@@ -384,6 +454,7 @@ class MainActivity : AppCompatActivity() {
         progress.visibility = View.GONE
         web.visibility = View.GONE
         form.visibility = View.VISIBLE
+        showPostingChrome(false)
         postedUrl.text = url
         // '공유하기 복사'를 직접 누르는 대신, 같은 결과(제목+모바일URL)를 자동 생성해 공유칸에 채운다.
         autofillHook(url)
@@ -533,6 +604,7 @@ class MainActivity : AppCompatActivity() {
                 web.visibility = View.GONE
                 progress.visibility = View.GONE
                 form.visibility = View.VISIBLE
+                showPostingChrome(false)
                 setStatus("포스팅 취소됨")
             }
             return

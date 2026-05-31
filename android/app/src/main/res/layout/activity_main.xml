@@ -86,6 +86,66 @@
         android:scrollbars="vertical"
         android:visibility="gone" />
 
+    <!-- 홈 화면 빠른 이동: 폼이 길어서 맨 위/맨 아래로 점프 -->
+    <LinearLayout
+        android:id="@+id/navBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#121212"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <Button android:id="@+id/btnScrollTop"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:minWidth="0dp"
+            android:text="▲ 맨 위" android:textSize="12sp" />
+
+        <Button android:id="@+id/btnScrollBottom"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
+            android:text="▼ 맨 아래" android:textSize="12sp" />
+    </LinearLayout>
+
+    <!-- 수동 입력 바: 자동 입력 실패 대비(포스팅 중에만 표시) -->
+    <LinearLayout
+        android:id="@+id/manualBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#1a1320"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <Button android:id="@+id/btnFillTitle"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:minWidth="0dp"
+            android:text="제목 입력" android:textSize="12sp"
+            android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+        <Button android:id="@+id/btnFillBody"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+            android:text="내용 입력" android:textSize="12sp"
+            android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+        <Button android:id="@+id/btnFillPhoto"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+            android:text="사진 입력" android:textSize="12sp"
+            android:paddingStart="2dp" android:paddingEnd="2dp" />
+    </LinearLayout>
+
     <!-- 본문 영역: 입력 폼 / 포스팅용 WebView 가 번갈아 표시 -->
     <FrameLayout
         android:layout_width="match_parent"
@@ -154,7 +214,10 @@
                     android:padding="10dp"
                     android:layout_marginTop="4dp"
                     android:gravity="top"
-                    android:minLines="8"
+                    android:minLines="5"
+                    android:maxLines="5"
+                    android:scrollbars="vertical"
+                    android:overScrollMode="always"
                     android:inputType="textMultiLine|textCapSentences" />
 
                 <!-- 사진 선택 -->
