@@ -316,12 +316,12 @@
                     android:textSize="11sp"
                     android:autoLink="web" />
 
-                <!-- 공유 문구: 포스팅 후 자동 생성(제목+모바일URL → 후킹 블록) · 붙여넣기/수정 가능 -->
+                <!-- 공유 원문: 포스팅 후 자동 생성(제목+모바일URL) · 네이버 '공유하기 복사' 붙여넣기/수정 가능 -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="공유 문구 (자동 생성 · 붙여넣기/수정 가능)"
+                    android:text="공유 원문 (자동 생성 · 붙여넣기/수정 가능)"
                     android:textColor="#9a9a9a"
                     android:textSize="12sp" />
 
@@ -329,7 +329,7 @@
                     android:id="@+id/snsInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="포스팅 완료 후 자동 생성됩니다.\n네이버 '공유하기 복사' 글을 직접 붙여넣어도 됩니다."
+                    android:hint="포스팅 완료 후 자동 생성됩니다.\n네이버 '공유하기 복사' 글을 붙여넣어도 됩니다."
                     android:textColor="#f0f0f0"
                     android:textColorHint="#5a5a5a"
                     android:textSize="13sp"
@@ -337,17 +337,66 @@
                     android:padding="10dp"
                     android:layout_marginTop="4dp"
                     android:gravity="top"
-                    android:minLines="5"
+                    android:minLines="3"
+                    android:maxLines="6"
+                    android:scrollbars="vertical"
                     android:inputType="textMultiLine" />
 
-                <Button
-                    android:id="@+id/btnGenHook"
-                    style="?attr/materialButtonOutlinedStyle"
+                <!-- 후킹 메시지: 원문/제목/URL 바뀌면 자동 변환(블록 줄바꿈 + CTA + URL) -->
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="후킹 메시지 (자동 변환 · 복사용)"
+                    android:textColor="#9a9a9a"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/hookOutput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="공유 원문을 넣으면 후킹 문구로 자동 변환됩니다."
+                    android:textColor="#ffe27a"
+                    android:textColorHint="#5a5a5a"
+                    android:textSize="13sp"
+                    android:background="#15140b"
+                    android:padding="10dp"
                     android:layout_marginTop="4dp"
-                    android:text="↻ 후킹 문구 생성/변환"
-                    android:textSize="11sp" />
+                    android:gravity="top"
+                    android:minLines="6"
+                    android:maxLines="14"
+                    android:scrollbars="vertical"
+                    android:inputType="textMultiLine" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/btnGenHook"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minWidth="0dp"
+                        android:text="↻ 다시 생성"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnCopyHook"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:minWidth="0dp"
+                        android:text="📋 후킹 복사"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:backgroundTint="#7c6ff7"
+                        android:textColor="#ffffff" />
+                </LinearLayout>
 
                 <LinearLayout
                     android:layout_width="match_parent"

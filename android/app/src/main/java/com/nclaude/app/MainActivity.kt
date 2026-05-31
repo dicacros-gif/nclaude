@@ -51,10 +51,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var snsInput: EditText
     private lateinit var navBar: LinearLayout
     private lateinit var manualBar: LinearLayout
+    private lateinit var hookOutput: EditText
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
     private var titleEdited = false
+    private var suppressTitleWatcher = false
 
     // 포스팅 상태
     private var posting = false
@@ -103,6 +105,7 @@ class MainActivity : AppCompatActivity() {
         snsInput = findViewById(R.id.snsInput)
         navBar = findViewById(R.id.navBar)
         manualBar = findViewById(R.id.manualBar)
+        hookOutput = findViewById(R.id.hookOutput)
 
         setupWeb()
         setupForm()
@@ -195,8 +198,9 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     private fun setupForm() {
         findViewById<Button>(R.id.btnGenTitle).setOnClickListener {
-            titleInput.setText(TitleGen.generate(contentInput.text.toString()))
+            setTitleProgrammatically(TitleGen.generate(contentInput.text.toString()))
             titleEdited = false
+            regenHook()
         }
         findViewById<Button>(R.id.btnPickPhotos).setOnClickListener {
             pickPhotos.launch(
@@ -214,21 +218,42 @@ class MainActivity : AppCompatActivity() {
         contentInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 if (!titleEdited) {
-                    titleInput.setText(TitleGen.generate(contentInput.text.toString()))
+                    setTitleProgrammatically(TitleGen.generate(contentInput.text.toString()))
                 }
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         })
-        titleInput.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) titleEdited = true }
 
-        // 본문칸은 5줄 고정 — 내부 스크롤이 바깥 ScrollView 에 가로채이지 않게
-        contentInput.setOnTouchListener { v, ev ->
-            v.parent?.requestDisallowInterceptTouchEvent(true)
+        // 사용자가 제목을 직접 고치면 그 값을 유지(자동 갱신 중단) + 후킹 문구 자동 갱신
+        titleInput.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                if (!suppressTitleWatcher) titleEdited = true
+                regenHook()
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+
+        enableInnerScroll(contentInput)
+    }
+
+    /** 제목을 코드로 채울 때(자동생성 등) — TextWatcher 가 '사용자 수정'으로 오인하지 않게 */
+    private fun setTitleProgrammatically(t: String) {
+        suppressTitleWatcher = true
+        titleInput.setText(t)
+        suppressTitleWatcher = false
+    }
+
+    /** maxLines 로 고정된 칸이 바깥 ScrollView 에 스크롤을 뺏기지 않고 내부 스크롤되게 */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun enableInnerScroll(v: View) {
+        v.setOnTouchListener { view, ev ->
+            view.parent?.requestDisallowInterceptTouchEvent(true)
             if (ev.actionMasked == android.view.MotionEvent.ACTION_UP ||
                 ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
             ) {
-                v.parent?.requestDisallowInterceptTouchEvent(false)
+                view.parent?.requestDisallowInterceptTouchEvent(false)
             }
             false
         }
@@ -320,7 +345,7 @@ class MainActivity : AppCompatActivity() {
             toast("본문을 입력하세요"); return
         }
         if (titleInput.text.isNullOrBlank()) {
-            titleInput.setText(TitleGen.generate(content))
+            setTitleProgrammatically(TitleGen.generate(content))
         }
         posting = true
         filled = false
@@ -456,10 +481,11 @@ class MainActivity : AppCompatActivity() {
         form.visibility = View.VISIBLE
         showPostingChrome(false)
         postedUrl.text = url
-        // '공유하기 복사'를 직접 누르는 대신, 같은 결과(제목+모바일URL)를 자동 생성해 공유칸에 채운다.
-        autofillHook(url)
-        setStatus("게시 완료! 공유 문구가 자동 생성됐어요 — 확인/수정 후 SNS 공유")
-        toast("블로그 게시 완료 · 공유 문구 생성됨")
+        // '공유하기 복사'를 직접 누르는 대신, 같은 결과(제목+모바일URL)를 공유 원문칸에 채운다.
+        // 원문칸이 채워지면 watcher 가 후킹 메시지를 자동 변환한다.
+        autofillShareSource(url)
+        setStatus("게시 완료! 공유 원문·후킹 메시지가 자동 생성됐어요 — 확인 후 '후킹 복사'/SNS 공유")
+        toast("블로그 게시 완료 · 후킹 메시지 생성됨")
     }
 
     private fun isEditorUrl(url: String) =
@@ -483,23 +509,57 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnTh).setOnClickListener { shareOne("threads") }
         findViewById<Button>(R.id.btnX).setOnClickListener { shareOne("x") }
         findViewById<Button>(R.id.btnPostAll).setOnClickListener { shareAll() }
-        findViewById<Button>(R.id.btnGenHook).setOnClickListener { autofillHook(publishedUrl) }
+        findViewById<Button>(R.id.btnGenHook).setOnClickListener { regenHook(force = true) }
+        findViewById<Button>(R.id.btnCopyHook).setOnClickListener { copyHookOutput() }
+
+        // 공유 원문이 바뀌면 후킹 메시지 자동 변환(제목/URL 변경은 제목 watcher·onPublished 에서 갱신)
+        snsInput.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { regenHook() }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+        enableInnerScroll(snsInput)
+        enableInnerScroll(hookOutput)
     }
 
     /**
-     * '공유하기 복사' 자동화 대체:
-     * 공유칸이 비었으면 제목, 있으면 그 내용을 원본으로 후킹 문구(블록 줄바꿈 + CTA + 모바일URL)를
-     * 만들어 공유칸에 채운다. buildHook 은 멱등이라 변환된 글을 다시 눌러도 안전하다.
+     * '공유하기 복사' 자동화 대체: 게시 직후 공유 '원문'(제목 + 모바일URL)을 원문칸에 채운다.
+     * 원문이 바뀌면 snsInput watcher 가 후킹 메시지를 자동 변환한다.
      */
-    private fun autofillHook(url: String?) {
-        val src = snsInput.text?.toString()?.takeIf { it.isNotBlank() }
+    private fun autofillShareSource(url: String?) {
+        val title = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: TitleGen.generate(contentInput.text.toString())
+        val murl = url?.let { mobileShareUrl(it) } ?: ""
+        val source = if (murl.isNotBlank()) "$title\n$murl" else title
+        snsInput.setText(source)   // → watcher 가 regenHook 실행
+        regenHook()                // 즉시 1회 보장
+    }
+
+    /**
+     * 공유 원문/제목/URL 로 후킹 메시지를 만들어 hookOutput 박스에 채운다(자동 갱신).
+     * 원문에 URL 이 있으면 그것을, 없으면 게시 URL(모바일)을 사용.
+     */
+    private fun regenHook(force: Boolean = false) {
+        val source = snsInput.text?.toString()?.takeIf { it.isNotBlank() }
             ?: titleInput.text?.toString()?.takeIf { it.isNotBlank() }
             ?: contentInput.text.toString()
-        if (src.isBlank()) { toast("본문이나 공유할 글을 먼저 입력하세요"); return }
-        val murl = url?.let { mobileShareUrl(it) } ?: ""
-        snsInput.setText(SnsShare.buildHook(src, murl))
-        copyHook(snsInput.text.toString())
-        setStatus("공유 문구 생성 완료 — 클립보드에도 복사됨")
+        if (source.isBlank()) {
+            if (force) toast("공유 원문이나 제목을 먼저 입력하세요")
+            return
+        }
+        val urlInSource = Regex("https?://\\S+").find(source)?.value
+        val url = urlInSource ?: publishedUrl?.let { mobileShareUrl(it) } ?: ""
+        hookOutput.setText(SnsShare.buildHook(source, url))
+    }
+
+    /** 후킹 메시지 박스의 현재 문구를 클립보드로 복사 */
+    private fun copyHookOutput() {
+        val t = hookOutput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: run { regenHook(); hookOutput.text?.toString() }
+        if (t.isNullOrBlank()) { toast("공유 원문을 먼저 입력하세요"); return }
+        copyHook(t)
+        toast("후킹 문구를 클립보드에 복사했습니다")
+        setStatus("후킹 문구 복사됨")
     }
 
     /** 게시 URL 을 모바일 공유 형식(m.blog.naver.com/{id}/{logNo})으로 변환 */
@@ -509,12 +569,11 @@ class MainActivity : AppCompatActivity() {
         return if (logNo != null) "https://m.blog.naver.com/$currentAccount/$logNo" else url
     }
 
-    /** 공유에 쓸 텍스트: 공유칸 내용이 있으면 그대로(사용자 편집 존중), 없으면 즉석 생성 */
+    /** 공유에 쓸 텍스트: 후킹 메시지 박스 내용(없으면 즉석 생성) */
     private fun hookText(): String {
-        snsInput.text?.toString()?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
-        val src = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
-            ?: contentInput.text.toString()
-        return SnsShare.buildHook(src, publishedUrl?.let { mobileShareUrl(it) } ?: "")
+        hookOutput.text?.toString()?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+        regenHook()
+        return hookOutput.text?.toString()?.trim().orEmpty()
     }
 
     private fun copyHook(text: String) {
