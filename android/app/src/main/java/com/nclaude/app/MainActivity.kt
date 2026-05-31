@@ -398,6 +398,10 @@ class MainActivity : AppCompatActivity() {
             titleEdited = false
             regenHook()
         }
+        findViewById<Button>(R.id.btnClearBody).setOnClickListener {
+            contentInput.setText("")
+            setStatus("본문을 비웠습니다")
+        }
         findViewById<Button>(R.id.btnCopyTitleHome).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnCopyTitleApp).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnCopyBodyApp).setOnClickListener { copyBodyToClipboard() }

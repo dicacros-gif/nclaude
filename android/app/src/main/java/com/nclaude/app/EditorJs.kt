@@ -165,27 +165,39 @@ object EditorJs {
     return any;
   }
 
-  // 줄(문단) 통째 서식: 정규화 텍스트가 일치하는 문단을 찾아 적용
+  // 줄(문단) 통째 서식: 정규화 텍스트가 '완전 일치' → 없으면 '포함 관계'로 문단을 찾아 적용
   function applyLineSegs(d, segs){
     var count = 0;
     var paras = bodyParas(d);
+    var used = [];
+    function applySeg(p, seg){
+      selectAll(d, p);
+      try{
+        if (seg.bold) d.execCommand('bold',false,null);
+        if (seg.color) d.execCommand('foreColor',false,seg.color);
+        if (seg.hilite) d.execCommand('hiliteColor',false,seg.hilite);
+      }catch(e){}
+    }
     for (var s=0;s<segs.length;s++){
       var seg = segs[s];
       var key = (seg.text||'').replace(/\s/g,'');
       if (!key) continue;
+      var hit = -1;
+      // 1차: 정규화 텍스트 완전 일치
       for (var i=0;i<paras.length;i++){
+        if (used[i]) continue;
         var pt = (paras[i].textContent||'').replace(/\s/g,'');
-        if (pt && pt===key){
-          selectAll(d, paras[i]);
-          try{
-            if (seg.bold) d.execCommand('bold',false,null);
-            if (seg.color) d.execCommand('foreColor',false,seg.color);
-            if (seg.hilite) d.execCommand('hiliteColor',false,seg.hilite);
-            count++;
-          }catch(e){}
-          break;
+        if (pt && pt===key){ hit = i; break; }
+      }
+      // 2차: 포함 관계(에디터가 줄을 합치거나 이모지/공백 차이로 완전일치가 안 될 때)
+      if (hit<0){
+        for (var j=0;j<paras.length;j++){
+          if (used[j]) continue;
+          var pt2 = (paras[j].textContent||'').replace(/\s/g,'');
+          if (pt2 && (pt2.indexOf(key)>=0 || key.indexOf(pt2)>=0)){ hit = j; break; }
         }
       }
+      if (hit>=0){ used[hit]=true; applySeg(paras[hit], seg); count++; }
     }
     try{ win(d).getSelection().removeAllRanges(); }catch(e){}
     return count;
