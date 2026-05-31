@@ -222,9 +222,17 @@ object Formatter {
     //  네이버 에디터 '붙여넣기' 전용 최소 서식 HTML
     //  SmartEditor(모바일/PC)가 안전하게 받아주는 태그만 사용 → 굵게/글자색/형광이
     //  '실제 서식'으로 들어가고, 태그가 글자로 노출되지 않게 한다.
-    //  허용 범위만 사용: <p> 줄 구분, <b> 굵게, <span style="color/background-color">.
+    //  허용 범위만 사용: <p> 줄 구분, <b>/<strong> 굵게, <span style="color/background-color">.
     //  (line-height·padding·font-size 등은 일부 에디터가 통째로 무시하거나
     //   거꾸로 텍스트로 노출시키는 경우가 있어 의도적으로 제외)
+    //
+    //  ※ 검증(웹 리서치): ClipData.newHtmlText(plain, html) 는 text/plain + text/html 을
+    //    함께 올리는 '정상' 방식이며 데스크톱 브라우저 붙여넣기에선 서식이 유지된다.
+    //    그러나 안드로이드 WebView/크로미움은 contenteditable 붙여넣기에서 text/html 을
+    //    무시하고 text/plain 으로 강등하는 사례가 많다(크로미움 이슈 382393144 등).
+    //    → 갤럭시에서 '확실한' 서식 입력 경로는 클립보드가 아니라 에디터 DOM 에
+    //      execCommand(bold/foreColor/hiliteColor)로 '직접' 주입하는 것(EditorJs).
+    //      이 HTML 은 (a)외부 앱 붙여넣기 폴백, (b)서식 유지하는 앱(삼성노트 등)용이다.
     // ---------------------------------------------------------------
     fun bodyHtmlNaver(body: String): String {
         val sb = StringBuilder()
