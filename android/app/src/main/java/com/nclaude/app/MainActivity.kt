@@ -205,7 +205,7 @@ class MainActivity : AppCompatActivity() {
         val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
         if (c == null) { toast("먼저 본문을 입력하세요"); return }
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtml(c)))
+        cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtmlNaver(c)))
         toast("본문 복사됨 — 네이버 본문칸을 길게 눌러 붙여넣기")
         setStatus("본문을 클립보드에 복사했어요 — 본문칸 길게 눌러 붙여넣기")
     }
@@ -593,7 +593,7 @@ class MainActivity : AppCompatActivity() {
     /** 서식 포함 본문 HTML 을 클립보드에 올려둔다(자동 입력이 약할 때 길게 눌러 붙여넣기). */
     private fun stageClipboardHtml(content: String) {
         try {
-            val html = Formatter.bodyHtml(content)
+            val html = Formatter.bodyHtmlNaver(content)
             val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cb.setPrimaryClip(ClipData.newHtmlText("post", content, html))
             dbg("서식 본문 클립보드 복사됨(붙여넣기 폴백)")

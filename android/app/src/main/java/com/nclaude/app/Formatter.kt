@@ -200,6 +200,55 @@ object Formatter {
         return out
     }
 
+    // ---------------------------------------------------------------
+    //  네이버 에디터 '붙여넣기' 전용 최소 서식 HTML
+    //  SmartEditor(모바일/PC)가 안전하게 받아주는 태그만 사용 → 굵게/글자색/형광이
+    //  '실제 서식'으로 들어가고, 태그가 글자로 노출되지 않게 한다.
+    //  허용 범위만 사용: <p> 줄 구분, <b> 굵게, <span style="color/background-color">.
+    //  (line-height·padding·font-size 등은 일부 에디터가 통째로 무시하거나
+    //   거꾸로 텍스트로 노출시키는 경우가 있어 의도적으로 제외)
+    // ---------------------------------------------------------------
+    fun bodyHtmlNaver(body: String): String {
+        val sb = StringBuilder()
+        var firstDone = false
+        for (raw in body.split('\n')) {
+            val ln = raw.trim()
+            if (ln.isEmpty()) { sb.append("<p><br></p>"); continue }
+            val isFirst = !firstDone
+            firstDone = true
+            val seg = classify(ln, isFirst)
+            if (seg != null && (seg.bold || seg.color != null || seg.hilite != null)) {
+                sb.append("<p>").append(naverSpan(esc(ln), seg)).append("</p>")
+            } else {
+                sb.append("<p>").append(inlineNaver(esc(ln))).append("</p>")
+            }
+        }
+        return sb.toString()
+    }
+
+    /** 한 줄 전체에 줄 서식(굵게/글자색/형광)을 최소 태그로 감싼다. */
+    private fun naverSpan(escaped: String, seg: Seg): String {
+        val style = buildString {
+            seg.color?.let { append("color:").append(it).append(";") }
+            seg.hilite?.let { append("background-color:").append(it).append(";") }
+        }
+        var inner = if (style.isNotEmpty()) "<span style=\"$style\">$escaped</span>" else escaped
+        if (seg.bold) inner = "<b>$inner</b>"
+        return inner
+    }
+
+    /** 서식 없는 줄: 중요 단어만 굵게+글자색+형광(최소 태그)으로 인라인 강조. */
+    private fun inlineNaver(escaped: String): String {
+        var out = escaped
+        for (w in IMPORTANT_WORDS) {
+            if (out.contains(w)) out = out.replace(
+                w,
+                "<b><span style=\"color:$WORD_COLOR;background-color:$WORD_HILITE\">$w</span></b>"
+            )
+        }
+        return out
+    }
+
     private fun esc(s: String) =
         s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 }
