@@ -4,14 +4,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * 본문 줄을 분류해 가독성 서식(볼드/색상/하이라이트)을 부여한다.
- * 결과 세그먼트는 JS 로 전달되어 에디터 문단에 적용된다.
+ * 본문을 분류해 가독성 서식(볼드/색상/하이라이트)을 부여한다.
+ *  - 줄 단위(segs)     : 에디터 문단 통째 서식 → JS applyLineSegs
+ *  - 단어 단위(words)  : 중요 단어를 본문 어디에 나오든 인라인 하이라이트 → JS applyWords
+ *  - bodyHtml()        : 자동 입력이 실패할 때를 대비한 '서식 포함 전체 붙여넣기'용 HTML(클립보드)
  *
- *  - 첫 줄(글머리)         : 파랑 볼드
- *  - ❝ 로 시작하는 소제목   : 초록 볼드 + 연초록 형광
- *  - # 해시태그 줄          : 파랑
- *  - 키워드 포함 핵심 문장   : 자홍 볼드 + 노랑 형광
- *  - ── 구분선             : 서식 없음(그대로)
+ * 줄 규칙:
+ *  - 첫 줄(글머리)        : 파랑 볼드
+ *  - ❝ 소제목            : 볼드 + 노랑 형광(사용자 요청)
+ *  - # 해시태그          : 파랑
+ *  - 키워드 핵심 문장     : 자홍 볼드 + 연노랑 형광
+ *  - ── 구분선          : 서식 없음
  */
 object Formatter {
 
@@ -22,25 +25,47 @@ object Formatter {
         val hilite: String?
     )
 
+    private const val WORD_HILITE = "#fff34f"   // 중요 단어 노랑 형광
+
+    // 핵심 '문장' 판정 키워드
     private val HILITE_KEYWORDS = listOf(
         "가장", "결국", "핵심", "중요", "주의", "반드시",
         "수혜", "피해", "승자", "진짜 의미", "왜"
     )
 
+    // 본문 어디에 나오든 인라인 강조할 '단어'(임팩트어) — 기기에서 조정 가능
+    private val IMPORTANT_WORDS = listOf(
+        "급등", "급락", "폭발", "충격", "역대", "최초", "최대", "최고", "사상",
+        "수혜", "피해", "승자", "경쟁", "전망", "핵심", "주의", "반드시",
+        "논란", "호재", "악재", "변수", "기회", "위기"
+    )
+
+    private fun classify(line: String, isFirst: Boolean): Seg? = when {
+        isDivider(line) -> null
+        isFirst -> Seg(line, true, "#1d4ed8", null)
+        line.startsWith("❝") -> Seg(line, true, null, WORD_HILITE)
+        line.startsWith("#") -> Seg(line, false, "#2563eb", null)
+        line.length <= 60 && HILITE_KEYWORDS.any { line.contains(it) } ->
+            Seg(line, true, "#d6336c", "#fff3bf")
+        else -> null
+    }
+
+    /** 줄 단위 서식 세그먼트(서식 없는 줄은 제외) */
     fun segments(content: String): List<Seg> {
         val lines = content.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
         if (lines.isEmpty()) return emptyList()
         val out = ArrayList<Seg>()
         for ((i, ln) in lines.withIndex()) {
-            when {
-                isDivider(ln) -> { /* 구분선: 서식 없음 */ }
-                i == 0 -> out.add(Seg(ln, true, "#1d4ed8", null))
-                ln.startsWith("❝") -> out.add(Seg(ln, true, "#0a8f3c", "#e9fbef"))
-                ln.startsWith("#") -> out.add(Seg(ln, false, "#2563eb", null))
-                ln.length <= 60 && HILITE_KEYWORDS.any { ln.contains(it) } ->
-                    out.add(Seg(ln, true, "#d6336c", "#fff3bf"))
-                else -> { /* 일반 문단 */ }
-            }
+            classify(ln, i == 0)?.let { out.add(it) }
+        }
+        return out
+    }
+
+    /** 본문에 실제로 등장하는 중요 단어만 인라인 강조 대상으로 */
+    fun words(content: String): List<Seg> {
+        val out = ArrayList<Seg>()
+        for (w in IMPORTANT_WORDS) {
+            if (content.contains(w)) out.add(Seg(w, true, null, WORD_HILITE))
         }
         return out
     }
@@ -48,24 +73,74 @@ object Formatter {
     private fun isDivider(s: String): Boolean =
         s.isNotEmpty() && s.all { it == '─' || it == '—' || it == '-' || it == 'ㅡ' || it.isWhitespace() }
 
-    /** JS 로 넘길 payload: { title, lines:[...빈 줄 포함...], segs:[{text,bold,color,hilite}] } */
+    /** JS payload: { title, lines:[빈 줄 포함], segs:[...], words:[...] } */
     fun payload(title: String, body: String): JSONObject {
         val segs = JSONArray()
-        for (s in segments(body)) {
-            segs.put(
-                JSONObject()
-                    .put("text", s.text)
-                    .put("bold", s.bold)
-                    .put("color", s.color ?: JSONObject.NULL)
-                    .put("hilite", s.hilite ?: JSONObject.NULL)
-            )
-        }
-        // 빈 줄까지 보존해 문단 간격을 그대로 살린다
+        for (s in segments(body)) segs.put(segJson(s))
+        val words = JSONArray()
+        for (w in words(body)) words.put(segJson(w))
         val lines = JSONArray()
         for (ln in body.split('\n')) lines.put(ln.replace("\r", ""))
         return JSONObject()
             .put("title", title)
             .put("lines", lines)
             .put("segs", segs)
+            .put("words", words)
     }
+
+    private fun segJson(s: Seg) = JSONObject()
+        .put("text", s.text)
+        .put("bold", s.bold)
+        .put("color", s.color ?: JSONObject.NULL)
+        .put("hilite", s.hilite ?: JSONObject.NULL)
+
+    // ---------------------------------------------------------------
+    //  클립보드 붙여넣기 폴백용 HTML (서식 포함 본문 전체)
+    //  자동 입력이 안 될 때 에디터 본문을 길게 눌러 '붙여넣기' 하면 그대로 들어간다.
+    // ---------------------------------------------------------------
+    fun bodyHtml(body: String): String {
+        val sb = StringBuilder()
+        var firstDone = false
+        for (raw in body.split('\n')) {
+            val ln = raw.trim()
+            if (ln.isEmpty()) {
+                sb.append("<p><br></p>")
+                continue
+            }
+            val isFirst = !firstDone
+            firstDone = true
+            sb.append(paragraphHtml(ln, classify(ln, isFirst)))
+        }
+        return sb.toString()
+    }
+
+    private fun paragraphHtml(line: String, seg: Seg?): String {
+        val styled = seg != null && (seg.bold || seg.color != null || seg.hilite != null)
+        return if (styled) {
+            val style = buildString {
+                if (seg!!.bold) append("font-weight:bold;")
+                seg.color?.let { append("color:").append(it).append(";") }
+                seg.hilite?.let { append("background-color:").append(it).append(";") }
+            }
+            "<p style=\"$style\">${esc(line)}</p>"
+        } else {
+            "<p>${inlineWrap(esc(line))}</p>"
+        }
+    }
+
+    private fun inlineWrap(escaped: String): String {
+        var out = escaped
+        for (w in IMPORTANT_WORDS) {
+            if (out.contains(w)) {
+                out = out.replace(
+                    w,
+                    "<b><span style=\"background-color:$WORD_HILITE\">$w</span></b>"
+                )
+            }
+        }
+        return out
+    }
+
+    private fun esc(s: String) =
+        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 }

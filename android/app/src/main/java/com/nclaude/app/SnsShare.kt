@@ -5,14 +5,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 
 /**
- * SNS 교차 공유. 블로그 글 핵심을 후킹 요약으로 만들고 각 앱으로 공유 인텐트를 보낸다.
+ * SNS 교차 공유. 제목(런온 문장)을 후킹 블록으로 줄바꿈하고 끝에 글 URL 을 붙여 각 앱으로 보낸다.
  *
- * 현실적 한계(인텐트 방식):
- *  - X(트위터)·스레드: 텍스트 프리필 잘 됨
- *  - 링크드인: 텍스트/URL 공유 가능(앱이 URL 위주로 처리하기도 함)
- *  - 페이스북: 정책상 EXTRA_TEXT 프리필을 무시하고 URL 위주로만 처리됨
- *  - 인스타그램: 피드 텍스트 공유 미지원(이미지 공유 위주) → 클립보드 복사로 보완
- *  보완책으로 항상 후킹 텍스트를 클립보드에 복사한다(앱에서 붙여넣기 가능).
+ * 현실적 한계(인텐트 방식 — 앱 샌드박스상 다른 앱 세션을 직접 못 씀):
+ *  - X(트위터)·스레드·링크드인: 텍스트 프리필 잘 됨
+ *  - 페이스북: 정책상 EXTRA_TEXT 프리필을 무시하고 URL 위주로만 처리
+ *  - 인스타그램: 피드 텍스트 공유 미지원(이미지 위주) → 클립보드 복사로 보완
+ *  보완책으로 항상 후킹 텍스트를 클립보드에 복사한다(어느 앱이든 붙여넣기 가능).
  */
 object SnsShare {
 
@@ -28,27 +27,64 @@ object SnsShare {
 
     fun platform(id: String): Platform = PLATFORMS.first { it.id == id }
 
-    /** 본문에서 후킹 요약 생성 + 끝에 글 URL */
-    fun buildHook(content: String, url: String): String {
-        val lines = content.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
-        if (lines.isEmpty()) return url
-        val headline = lines.first()
+    // CTR 후킹 문구 — 기기에서 자유롭게 조정 가능
+    private const val CTA = "👇 전체 내용 보기"
 
-        val hookLine = lines.drop(1).firstOrNull {
-            !it.startsWith("❝") && !it.startsWith("#") && !isDivider(it) && it.length > 12
+    private val URL_RE = Regex("https?://\\S+")
+
+    /**
+     * 후킹 텍스트 생성.
+     *  입력  "A? B? C"  +  url
+     *  출력  "A?\n\nB?\n\nC\n\n\n👇 전체 내용 보기\n{url}"
+     * 물음표/느낌표 경계로 블록을 나눠 줄바꿈, CTA 한 줄 + URL 을 끝에 붙인다.
+     */
+    fun buildHook(source: String, url: String): String {
+        val resolvedUrl = if (url.isNotBlank()) url else extractUrl(source)
+        val lead = leadLine(source, resolvedUrl)
+        val blocks = splitHookBlocks(lead)
+
+        val sb = StringBuilder()
+        if (blocks.isEmpty()) {
+            if (lead.isNotBlank()) sb.append(lead)
+        } else {
+            for ((i, b) in blocks.withIndex()) {
+                if (i > 0) sb.append("\n\n")
+                sb.append(b)
+            }
         }
-
-        val tagLine = lines.lastOrNull { it.startsWith("#") }
-        val tags = tagLine?.split(Regex("\\s+"))
-            ?.filter { it.startsWith("#") }
-            ?.take(5)
-            ?.joinToString(" ")
-
-        val sb = StringBuilder(headline)
-        if (hookLine != null) sb.append("\n\n").append(trimTo(hookLine, 90))
-        if (!tags.isNullOrBlank()) sb.append("\n\n").append(tags)
-        if (url.isNotBlank()) sb.append("\n\n👉 ").append(url)
+        if (resolvedUrl.isNotBlank()) {
+            if (sb.isNotEmpty()) sb.append("\n\n\n")
+            if (CTA.isNotBlank()) sb.append(CTA).append('\n')
+            sb.append(resolvedUrl)
+        }
         return sb.toString()
+    }
+
+    private fun extractUrl(s: String): String = URL_RE.find(s)?.value ?: ""
+
+    /** URL 줄을 제외한 첫 의미있는 줄(= 보통 제목). 한 줄에 섞여오면 URL 만 제거. */
+    private fun leadLine(source: String, url: String): String {
+        val lines = source.split('\n').map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("http") }
+        if (lines.isNotEmpty()) return lines.first()
+        return if (url.isNotBlank()) source.replace(url, "").trim() else source.trim()
+    }
+
+    /** 물음표/느낌표(전각 포함) 경계로 블록 분리(기호 유지), 마지막 잔여도 블록으로. */
+    private fun splitHookBlocks(text: String): List<String> {
+        val blocks = ArrayList<String>()
+        val sb = StringBuilder()
+        for (ch in text) {
+            sb.append(ch)
+            if (ch == '?' || ch == '!' || ch == '？' || ch == '！') {
+                val b = sb.toString().trim()
+                if (b.isNotEmpty()) blocks.add(b)
+                sb.setLength(0)
+            }
+        }
+        val rest = sb.toString().trim()
+        if (rest.isNotEmpty()) blocks.add(rest)
+        return blocks
     }
 
     fun isInstalled(ctx: Context, pkg: String): Boolean = try {
@@ -76,9 +112,4 @@ object SnsShare {
         }
         return Intent.createChooser(send, "공유")
     }
-
-    private fun isDivider(s: String) =
-        s.isNotEmpty() && s.all { it == '─' || it == '—' || it == '-' || it == 'ㅡ' || it.isWhitespace() }
-
-    private fun trimTo(s: String, n: Int) = if (s.length <= n) s else s.substring(0, n).trimEnd() + "…"
 }

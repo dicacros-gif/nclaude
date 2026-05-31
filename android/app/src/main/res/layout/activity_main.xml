@@ -72,6 +72,20 @@
         android:textSize="12sp"
         android:visibility="gone" />
 
+    <!-- 디버그 로그(포스팅 중에도 보임): 어떤 셀렉터/전략이 동작했는지 기기에서 확인 -->
+    <TextView
+        android:id="@+id/debugLog"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="6dp"
+        android:background="#0a0a0a"
+        android:fontFamily="monospace"
+        android:textColor="#5fae5f"
+        android:textSize="9sp"
+        android:maxLines="7"
+        android:scrollbars="vertical"
+        android:visibility="gone" />
+
     <!-- 본문 영역: 입력 폼 / 포스팅용 WebView 가 번갈아 표시 -->
     <FrameLayout
         android:layout_width="match_parent"
@@ -191,6 +205,17 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal" />
                 </HorizontalScrollView>
+
+                <!-- 발행 자동/수동 -->
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/autoPublishSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="발행까지 자동 (끄면 검토 후 직접 발행)"
+                    android:textColor="#cfcfcf"
+                    android:textSize="12sp"
+                    android:checked="false" />
 
                 <!-- 포스팅 버튼 -->
                 <Button

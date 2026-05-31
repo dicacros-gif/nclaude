@@ -27,6 +27,7 @@ import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SwitchCompat
 import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -45,6 +46,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnClearPhotos: Button
     private lateinit var postedUrl: TextView
     private lateinit var accountGroup: MaterialButtonToggleGroup
+    private lateinit var debugLog: TextView
+    private lateinit var autoPublishSwitch: SwitchCompat
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
@@ -55,12 +58,16 @@ class MainActivity : AppCompatActivity() {
     private var filled = false
     private var publishedUrl: String? = null
 
+    // 사진 순차 삽입(일정 간격)
+    private var photoSeq = false
+    private var photoFeed: Uri? = null
+
     // SNS 일괄 공유 큐
     private val batchQueue = ArrayDeque<String>()
     private var batchActive = false
     private var awaitingReturn = false
 
-    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private val logLines = ArrayDeque<String>()
 
     private val pickPhotos =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(20)) { uris ->
@@ -87,6 +94,9 @@ class MainActivity : AppCompatActivity() {
         btnClearPhotos = findViewById(R.id.btnClearPhotos)
         postedUrl = findViewById(R.id.postedUrl)
         accountGroup = findViewById(R.id.accountGroup)
+        debugLog = findViewById(R.id.debugLog)
+        debugLog.movementMethod = android.text.method.ScrollingMovementMethod()
+        autoPublishSwitch = findViewById(R.id.autoPublishSwitch)
 
         setupWeb()
         setupForm()
@@ -198,19 +208,18 @@ class MainActivity : AppCompatActivity() {
 
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                if (url != null && Accounts.isLoggedIn()) {
-                    Accounts.saveCurrentFor(this@MainActivity, currentAccount)
-                }
-                if (posting && url != null) {
-                    if (isPublishedUrl(url)) {
-                        onPublished(url)
-                        return
-                    }
-                    if (!filled && isEditorUrl(url)) {
-                        filled = true
-                        setStatus("에디터 로딩 대기 중…")
-                        web.postDelayed({ injectAndFill() }, 2500)
-                    }
+                if (url == null) return
+                if (Accounts.isLoggedIn()) Accounts.saveCurrentFor(this@MainActivity, currentAccount)
+                if (!posting) return
+                if (isPublishedUrl(url)) { onPublished(url); return }
+                if (filled) return
+                // 로그인/리다이렉트를 거쳐 에디터 페이지가 뜰 때마다 (재)주입.
+                // 실제 에디터 탐색·로그인 감지는 JS(__NB_run)가 자체 폴링으로 처리.
+                if (isEditorUrl(url)) {
+                    dbg("에디터 페이지: ${shortUrl(url)}")
+                    injectFill()
+                } else {
+                    dbg("대기 페이지: ${shortUrl(url)}")
                 }
             }
         }
@@ -221,11 +230,14 @@ class MainActivity : AppCompatActivity() {
                 callback: ValueCallback<Array<Uri>>?,
                 params: WebChromeClient.FileChooserParams?
             ): Boolean {
-                filePathCallback?.onReceiveValue(null)
-                filePathCallback = callback
-                val uris = selectedPhotos.toTypedArray()
-                filePathCallback?.onReceiveValue(if (uris.isEmpty()) null else uris)
-                filePathCallback = null
+                // 순차 모드면 1장씩, 아니면(폴백) 선택한 전체를 한 번에 공급
+                val uris: Array<Uri> = if (photoSeq) {
+                    photoFeed?.let { arrayOf(it) } ?: emptyArray()
+                } else {
+                    selectedPhotos.toTypedArray()
+                }
+                callback?.onReceiveValue(if (uris.isEmpty()) null else uris)
+                dbg("파일선택창 → ${uris.size}장 공급")
                 return true
             }
         }
@@ -242,60 +254,122 @@ class MainActivity : AppCompatActivity() {
         posting = true
         filled = false
         publishedUrl = null
+        photoSeq = false
+        photoFeed = null
+        stageClipboardHtml(content)          // 자동 입력 실패 대비 '서식 포함 붙여넣기' 준비
+        logLines.clear(); debugLog.text = ""
+        debugLog.visibility = View.VISIBLE
         form.visibility = View.GONE
         web.visibility = View.VISIBLE
         progress.visibility = View.VISIBLE
         setStatus("${currentAccount} 글쓰기 페이지 여는 중…")
+        dbg("포스팅 시작 · 계정 ${currentAccount}")
         web.loadUrl(Accounts.writeUrl(currentAccount))
     }
 
-    private fun injectAndFill() {
-        if (!posting) return
-        setStatus("제목·본문 입력 중…")
-        web.evaluateJavascript(EditorJs.SCRIPT) {
-            val payload: JSONObject =
-                Formatter.payload(titleInput.text.toString(), contentInput.text.toString())
-            web.postDelayed({
-                web.evaluateJavascript("window.__NB_run($payload)", null)
-            }, 600)
+    /** 서식 포함 본문 HTML 을 클립보드에 올려둔다(자동 입력이 약할 때 길게 눌러 붙여넣기). */
+    private fun stageClipboardHtml(content: String) {
+        try {
+            val html = Formatter.bodyHtml(content)
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newHtmlText("post", content, html))
+            dbg("서식 본문 클립보드 복사됨(붙여넣기 폴백)")
+        } catch (e: Exception) {
+            dbg("클립보드 준비 실패 ${e.message}")
         }
     }
 
-    /** JS → Kotlin 결과 수신 */
+    private fun injectFill() {
+        if (!posting) return
+        setStatus("에디터 탐색·입력 중…")
+        val payload: JSONObject =
+            Formatter.payload(titleInput.text.toString(), contentInput.text.toString())
+        web.evaluateJavascript(EditorJs.SCRIPT) {
+            web.evaluateJavascript("window.__NB_run($payload)", null)
+        }
+    }
+
+    /** JS → Kotlin 콜백 */
     inner class AndroidPoster {
         @JavascriptInterface
-        fun onFilled(json: String) {
-            runOnUiThread { handleFilled(json) }
+        fun onFilled(json: String) = runOnUiThread { handleFilled(json) }
+
+        @JavascriptInterface
+        fun onImageButton(ok: Boolean) =
+            runOnUiThread { dbg(if (ok) "사진창 호출됨" else "사진버튼 실패") }
+
+        @JavascriptInterface
+        fun log(msg: String) = runOnUiThread { dbg(msg) }
+
+        @JavascriptInterface
+        fun onNeedLogin() = runOnUiThread {
+            progress.visibility = View.GONE
+            setStatus("로그인이 필요합니다 — 로그인하면 자동으로 이어집니다")
+            dbg("로그인 대기")
         }
 
         @JavascriptInterface
-        fun onImageButton(ok: Boolean) {
-            runOnUiThread {
-                setStatus(
-                    if (ok) "사진 업로드 창 호출됨 — 업로드 후 '발행'을 눌러주세요"
-                    else "사진 버튼을 찾지 못함 — 에디터에서 직접 사진을 추가해주세요"
-                )
-            }
-        }
+        fun onPublishClicked(ok: Boolean) =
+            runOnUiThread { dbg(if (ok) "발행 확정 클릭됨" else "발행 버튼 확인 필요(수동 발행)") }
     }
 
     private fun handleFilled(json: String) {
-        progress.visibility = View.GONE
         val report = try { JSONObject(json) } catch (e: Exception) { JSONObject() }
-        val titleOk = report.optBoolean("titleOk")
-        val bodyOk = report.optBoolean("bodyOk")
-        val fmt = report.optInt("formatCount")
-        val found = report.optBoolean("found")
-        if (!found) {
-            setStatus("에디터를 찾지 못했습니다. 로그인이 필요하거나 페이지 구조가 바뀌었을 수 있어요")
+        if (!report.optBoolean("found")) {
+            progress.visibility = View.GONE
+            setStatus("에디터를 찾지 못함 — 로그인/구조 확인. 본문은 클립보드에 있으니 길게 눌러 붙여넣기 가능")
+            dbg("found=false")
             return
         }
-        setStatus("입력 완료 (제목 ${yn(titleOk)} · 본문 ${yn(bodyOk)} · 서식 ${fmt}곳)")
+        filled = true
+        val titleOk = report.optBoolean("titleOk")
+        val bodyOk = report.optBoolean("bodyOk")
+        val bodyLen = report.optInt("bodyLen")
+        val paraCount = report.optInt("paraCount")
+        val fmt = report.optInt("lineSegs") + report.optInt("words")
+        setStatus("입력: 제목 ${yn(titleOk)} · 본문 ${yn(bodyOk)}(${bodyLen}자) · 서식 ${fmt}곳")
+        if (bodyLen < 5) {
+            setStatus("자동 입력이 약합니다 — 에디터 본문을 길게 눌러 '붙여넣기'(서식 포함) 하세요")
+            dbg("본문 거의 비어있음 → 클립보드 붙여넣기 권장")
+        }
         if (selectedPhotos.isNotEmpty()) {
-            web.postDelayed({
-                setStatus("사진 ${selectedPhotos.size}장 업로드 시도 중…")
-                web.evaluateJavascript("window.__NB_images()", null)
-            }, 900)
+            web.postDelayed({ insertPhotosSequentially(paraCount) }, 1000)
+        } else {
+            afterPhotos()
+        }
+    }
+
+    /** 사진을 본문 문단에 일정 간격으로 1장씩 순차 삽입 */
+    private fun insertPhotosSequentially(paraCount: Int) {
+        val n = selectedPhotos.size
+        if (n == 0) { afterPhotos(); return }
+        val base = if (paraCount < 1) 1 else paraCount
+        val indices = (0 until n).map { ((it + 1) * base) / (n + 1) }
+        photoSeq = true
+        dbg("사진 ${n}장 · 위치 ${indices}")
+        fun step(i: Int) {
+            if (!posting) { photoSeq = false; return }
+            if (i >= n) {
+                photoSeq = false; photoFeed = null
+                dbg("사진 삽입 완료")
+                afterPhotos()
+                return
+            }
+            photoFeed = selectedPhotos[i]
+            setStatus("사진 ${i + 1}/${n} 삽입 중…")
+            web.evaluateJavascript("window.__NB_imageAt(${indices[i]})", null)
+            web.postDelayed({ step(i + 1) }, 4000)
+        }
+        step(0)
+    }
+
+    /** 입력·사진 후 단계: 자동발행이면 발행 클릭, 아니면 사용자 발행 대기 */
+    private fun afterPhotos() {
+        progress.visibility = View.GONE
+        if (autoPublishSwitch.isChecked) {
+            setStatus("발행 시도 중… (실패 시 직접 '발행')")
+            dbg("자동발행 ON → __NB_publish")
+            web.postDelayed({ web.evaluateJavascript("window.__NB_publish()", null) }, 1000)
         } else {
             setStatus("입력 완료 — 검토 후 '발행'을 눌러주세요")
         }
@@ -336,8 +410,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnPostAll).setOnClickListener { shareAll() }
     }
 
-    private fun hookText(): String =
-        SnsShare.buildHook(contentInput.text.toString(), publishedUrl ?: "")
+    private fun hookText(): String {
+        val src = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: contentInput.text.toString()
+        return SnsShare.buildHook(src, publishedUrl ?: "")
+    }
 
     private fun copyHook(text: String) {
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -398,6 +475,19 @@ class MainActivity : AppCompatActivity() {
         status.text = msg
         status.visibility = View.VISIBLE
     }
+
+    /** 화면 디버그 로그(마지막 60줄 유지, 자동 스크롤) */
+    private fun dbg(msg: String) {
+        logLines.addLast(msg)
+        while (logLines.size > 60) logLines.removeFirst()
+        debugLog.text = logLines.joinToString("\n")
+        val layout = debugLog.layout ?: return
+        val y = layout.getLineTop(debugLog.lineCount) - debugLog.height
+        debugLog.scrollTo(0, if (y > 0) y else 0)
+    }
+
+    private fun shortUrl(url: String): String =
+        if (url.length <= 60) url else url.substring(0, 60) + "…"
 
     private fun yn(b: Boolean) = if (b) "O" else "X"
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()

@@ -3,20 +3,27 @@ package com.nclaude.app
 /**
  * 네이버 스마트에디터 ONE 자동 입력 스크립트.
  *
- * WebView 에 주입된 뒤 두 진입점을 제공한다.
- *   - window.__NB_run(payload)  : 제목/본문 입력 + 가독성 서식 적용 → AndroidPoster.onFilled(report)
- *   - window.__NB_images()      : 에디터 '사진' 버튼 클릭(파일 선택창 유발) → AndroidPoster.onImageButton(ok)
+ * 진입점(코틀린이 호출):
+ *   - window.__NB_run(payload)   : 에디터 준비될 때까지 자체 폴링 → 제목/본문/서식 입력 → AndroidPoster.onFilled(report)
+ *   - window.__NB_imageAt(idx)   : idx 번째 문단 끝으로 커서 이동 후 '사진' 버튼 클릭(파일 선택창 유발)
+ *   - window.__NB_images()       : 현재 위치에서 '사진' 버튼 클릭 → AndroidPoster.onImageButton(ok)
+ *   - window.__NB_publish()      : '발행' 버튼 + 설정 패널 확정 클릭(best-effort) → AndroidPoster.onPublishClicked(ok)
+ *
+ * 콜백(코틀린 AndroidPoster): log(s), onFilled(json), onImageButton(b), onNeedLogin(), onPublishClicked(b)
  *
  * 에디터는 보통 iframe#mainFrame(같은 출처) 안에 있으므로 contentDocument 로 진입한다.
  * 셀렉터/타이밍은 네이버 업데이트 시 조정이 필요할 수 있다(미드저니 EXTRACT_JS 와 동일한 성격).
- *
- * 주의: Kotlin raw string 이므로 JS 안에서 '$' 문자는 쓰지 않는다(템플릿 충돌 방지).
+ * 주의: Kotlin raw string 이므로 JS 안에서 '$' 문자는 절대 쓰지 않는다(템플릿 충돌 방지).
  */
 object EditorJs {
     const val SCRIPT = """
 (function(){
   if (window.__NB_DEFINED) return;
   window.__NB_DEFINED = true;
+  window.__NB_DONE = false;
+  window.__NB_RUNNING = false;
+
+  function log(m){ try{ AndroidPoster.log(''+m); }catch(e){} }
 
   function edoc(){
     try {
@@ -37,6 +44,15 @@ object EditorJs {
   }
   function win(d){ return d.defaultView || window; }
 
+  function looksLikeLogin(){
+    try{
+      var h = (location.host||'');
+      if (h.indexOf('nid.naver.com')>=0) return true;
+      if (document.querySelector('#id, #pw, input[name="id"], input[name="pw"]')) return true;
+    }catch(e){}
+    return false;
+  }
+
   function closePopups(d){
     var sels = ['.se-popup-button-cancel','.__se_pop_layer .se-popup-button-cancel',
                 '.se-popup-button-close','button.se_popup_close','.se-help-panel-close-button'];
@@ -56,6 +72,9 @@ object EditorJs {
         || d.querySelector('.se-section-documentTitle .se-text-paragraph')
         || d.querySelector('.se-title-text .se-text-paragraph');
   }
+  function bodyParas(d){
+    return d.querySelectorAll('.se-content .se-text-paragraph, .se-component.se-text .se-text-paragraph');
+  }
   function firstBodyEl(d){
     var el = d.querySelector('.se-component.se-text .se-text-paragraph')
           || d.querySelector('.se-content .se-text-paragraph');
@@ -66,23 +85,28 @@ object EditorJs {
     return null;
   }
 
-  function focusEnd(d, el){
+  function selectAll(d, el){
     var w = win(d); el.focus();
     var sel = w.getSelection(); var r = d.createRange();
     r.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(r);
   }
+  function caretEnd(d, el){
+    var w = win(d); el.focus();
+    var sel = w.getSelection(); var r = d.createRange();
+    r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r);
+  }
 
   function typeTitle(d, el, text){
     if(!el) return false;
-    focusEnd(d, el);
+    selectAll(d, el);
     try{ d.execCommand('delete',false,null); }catch(e){}
     try{ return d.execCommand('insertText',false,text); }catch(e){ return false; }
   }
 
-  // 줄 단위로 입력해 실제 문단을 생성(서식/줄간격 보존)
+  // 줄 단위로 입력해 실제 문단을 생성(줄간격 보존)
   function typeBody(d, el, lines){
     if(!el) return false;
-    focusEnd(d, el);
+    selectAll(d, el);
     try{ d.execCommand('delete',false,null); }catch(e){}
     var ok = true;
     for (var i=0;i<lines.length;i++){
@@ -98,14 +122,10 @@ object EditorJs {
     return ok;
   }
 
-  function selectPara(d, p){
-    var w = win(d); var sel = w.getSelection(); var r = d.createRange();
-    r.selectNodeContents(p); sel.removeAllRanges(); sel.addRange(r);
-  }
-
-  function applySegs(d, segs){
+  // 줄(문단) 통째 서식: 정규화 텍스트가 일치하는 문단을 찾아 적용
+  function applyLineSegs(d, segs){
     var count = 0;
-    var paras = d.querySelectorAll('.se-content .se-text-paragraph, .se-component.se-text .se-text-paragraph');
+    var paras = bodyParas(d);
     for (var s=0;s<segs.length;s++){
       var seg = segs[s];
       var key = (seg.text||'').replace(/\s/g,'');
@@ -113,7 +133,7 @@ object EditorJs {
       for (var i=0;i<paras.length;i++){
         var pt = (paras[i].textContent||'').replace(/\s/g,'');
         if (pt && pt===key){
-          selectPara(d, paras[i]);
+          selectAll(d, paras[i]);
           try{
             if (seg.bold) d.execCommand('bold',false,null);
             if (seg.color) d.execCommand('foreColor',false,seg.color);
@@ -128,23 +148,45 @@ object EditorJs {
     return count;
   }
 
-  window.__NB_run = function(payload){
-    var report = { titleOk:false, bodyOk:false, formatCount:0, found:false };
+  // 단어 인라인 강조: 본문 텍스트노드에서 단어 첫 등장 위치에 서식
+  function findText(d, root, term){
     try{
-      var d = edoc();
-      closePopups(d);
-      var tEl = titleEl(d), bEl = firstBodyEl(d);
-      report.found = !!(tEl || bEl);
-      if (tEl) report.titleOk = typeTitle(d, tEl, payload.title || '');
-      if (bEl) report.bodyOk = typeBody(d, bEl, payload.lines || []);
-      if (payload.segs && payload.segs.length) report.formatCount = applySegs(d, payload.segs);
-    }catch(e){ report.error = (''+e); }
-    try{ AndroidPoster.onFilled(JSON.stringify(report)); }catch(e){}
-  };
+      var walker = d.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+      var node;
+      while(node = walker.nextNode()){
+        var idx = (node.nodeValue||'').indexOf(term);
+        if (idx>=0){
+          var r = d.createRange();
+          r.setStart(node, idx); r.setEnd(node, idx+term.length);
+          return r;
+        }
+      }
+    }catch(e){}
+    return null;
+  }
+  function applyWords(d, words){
+    if (!words || !words.length) return 0;
+    var count = 0;
+    var root = d.querySelector('.se-content') || d.body || d;
+    for (var wi=0; wi<words.length; wi++){
+      var term = words[wi].text; if(!term) continue;
+      var hit = findText(d, root, term);
+      if (hit){
+        try{
+          var sel = win(d).getSelection(); sel.removeAllRanges(); sel.addRange(hit);
+          if (words[wi].bold) d.execCommand('bold',false,null);
+          if (words[wi].hilite) d.execCommand('hiliteColor',false,words[wi].hilite);
+          if (words[wi].color) d.execCommand('foreColor',false,words[wi].color);
+          count++;
+        }catch(e){}
+      }
+    }
+    try{ win(d).getSelection().removeAllRanges(); }catch(e){}
+    return count;
+  }
 
-  window.__NB_images = function(){
-    var ok = false, d = edoc();
-    closePopups(d);
+  function clickImageButton(){
+    var d = edoc(); closePopups(d);
     var sels = [
       'button.se-toolbar-item-image',
       '.se-toolbar [data-name="image"]',
@@ -152,14 +194,120 @@ object EditorJs {
       'button.se-toolbar-button-image',
       '[data-log="ime.image"]',
       '.se-toolbar-item-image button',
-      'button[data-name="image"]'
+      'button[data-name="image"]',
+      'button[data-name="photo"]'
     ];
-    for (var i=0;i<sels.length && !ok;i++){
+    for (var i=0;i<sels.length;i++){
       var b = d.querySelector(sels[i]);
-      if (b){ try{ b.click(); ok = true; }catch(e){} }
+      if (b){ try{ b.click(); log('사진버튼 클릭 '+sels[i]); return true; }catch(e){} }
     }
+    log('사진버튼 못 찾음');
+    return false;
+  }
+
+  function doFill(d, tEl, bEl, payload){
+    var report = {found:true, titleOk:false, bodyOk:false, bodyLen:0, paraCount:0, lineSegs:0, words:0};
+    try{
+      if (tEl) report.titleOk = typeTitle(d, tEl, payload.title||'');
+      if (bEl) report.bodyOk = typeBody(d, bEl, payload.lines||[]);
+      var paras = bodyParas(d);
+      report.paraCount = paras.length;
+      var total = 0;
+      for (var i=0;i<paras.length;i++) total += (paras[i].textContent||'').length;
+      report.bodyLen = total;
+      if (payload.segs && payload.segs.length) report.lineSegs = applyLineSegs(d, payload.segs);
+      if (payload.words && payload.words.length) report.words = applyWords(d, payload.words);
+    }catch(e){ report.error=''+e; log('입력 오류 '+e); }
+    window.__NB_DONE = true; window.__NB_RUNNING = false;
+    log('입력완료 제목='+report.titleOk+' 본문='+report.bodyOk+' 글자수='+report.bodyLen
+        +' 문단='+report.paraCount+' 줄서식='+report.lineSegs+' 단어='+report.words);
+    try{ AndroidPoster.onFilled(JSON.stringify(report)); }catch(e){}
+  }
+
+  window.__NB_run = function(payload){
+    if (window.__NB_DONE || window.__NB_RUNNING) return;
+    window.__NB_RUNNING = true;
+    if (typeof payload === 'string'){ try{ payload = JSON.parse(payload); }catch(e){ payload = {}; } }
+    var tries = 0;
+    function attempt(){
+      if (window.__NB_DONE) return;
+      tries++;
+      try{
+        var d = edoc();
+        closePopups(d);
+        var tEl = titleEl(d), bEl = firstBodyEl(d);
+        if (tEl || bEl){
+          log('에디터 발견(시도 '+tries+')');
+          doFill(d, tEl, bEl, payload);
+          return;
+        }
+        if (looksLikeLogin()){
+          log('로그인 페이지 감지');
+          try{ AndroidPoster.onNeedLogin(); }catch(e){}
+          window.__NB_RUNNING = false;   // 로그인 후 코틀린이 재주입
+          return;
+        }
+      }catch(e){ log('탐색 오류 '+e); }
+      if (tries < 14){ setTimeout(attempt, 800); }
+      else {
+        window.__NB_RUNNING = false;
+        log('에디터 못 찾음(시도 '+tries+')');
+        try{ AndroidPoster.onFilled(JSON.stringify({found:false})); }catch(e){}
+      }
+    }
+    attempt();
+  };
+
+  window.__NB_imageAt = function(idx){
+    try{
+      var d = edoc(); closePopups(d);
+      var paras = bodyParas(d);
+      if (paras.length){
+        var t = idx; if (t<0) t=0; if (t>paras.length-1) t=paras.length-1;
+        caretEnd(d, paras[t]);
+        log('사진 위치 문단 '+t+'/'+paras.length);
+      }
+    }catch(e){ log('imageAt 오류 '+e); }
+    return clickImageButton();
+  };
+
+  window.__NB_images = function(){
+    var ok = clickImageButton();
     try{ AndroidPoster.onImageButton(ok); }catch(e){}
     return ok;
+  };
+
+  window.__NB_publish = function(){
+    function findFirst(doc, names){
+      if(!doc) return null;
+      var btns = doc.querySelectorAll('button, a');
+      for (var i=0;i<btns.length;i++){
+        var t = (btns[i].textContent||'').replace(/\s/g,'');
+        for (var n=0;n<names.length;n++){ if (t===names[n]) return btns[i]; }
+      }
+      return null;
+    }
+    function findLast(doc, names){
+      if(!doc) return null;
+      var btns = doc.querySelectorAll('button, a'); var found=null;
+      for (var i=0;i<btns.length;i++){
+        var t = (btns[i].textContent||'').replace(/\s/g,'');
+        for (var n=0;n<names.length;n++){ if (t===names[n]) found=btns[i]; }
+      }
+      return found;
+    }
+    var opened = false;
+    var b = findFirst(document, ['발행']) || findFirst(edoc(), ['발행']);
+    if (b){ try{ b.click(); opened=true; }catch(e){} }
+    log('발행 1차 '+opened);
+    setTimeout(function(){
+      var c = findLast(document, ['발행','확인']) || findLast(edoc(), ['발행','확인']);
+      var done=false;
+      if (c){ try{ c.click(); done=true; }catch(e){} }
+      log('발행 2차 '+done);
+      try{ AndroidPoster.onPublishClicked(done); }catch(e){}
+    }, 1500);
+    return opened;
   };
 })();
 """
