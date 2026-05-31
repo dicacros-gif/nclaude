@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#0d0d0d">
+
+    <!-- 상단 바: 제목 + 계정 전환 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="#161616">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="N블로그 포스터"
+            android:textColor="#e0e0e0"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/accountGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAcc1"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="dicajohn"
+                android:textSize="11sp"
+                android:minWidth="0dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAcc2"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="macdcross"
+                android:textSize="11sp"
+                android:minWidth="0dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="6dp"
+        android:textColor="#7c6ff7"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <!-- 본문 영역: 입력 폼 / 포스팅용 WebView 가 번갈아 표시 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ScrollView
+            android:id="@+id/form"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="제목 (자동 생성 · 수정 가능)"
+                    android:textColor="#9a9a9a"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/titleInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="본문을 입력하면 자동 생성됩니다"
+                    android:textColor="#f0f0f0"
+                    android:textColorHint="#5a5a5a"
+                    android:textSize="14sp"
+                    android:background="#1c1c1c"
+                    android:padding="10dp"
+                    android:layout_marginTop="4dp"
+                    android:inputType="textMultiLine"
+                    android:maxLines="3" />
+
+                <Button
+                    android:id="@+id/btnGenTitle"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="↻ 제목 자동생성"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="본문 — 전체 글을 붙여넣으세요"
+                    android:textColor="#9a9a9a"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/contentInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="제목줄\n\n첫 문단...\n\n...\n\n마지막 요약줄"
+                    android:textColor="#f0f0f0"
+                    android:textColorHint="#5a5a5a"
+                    android:textSize="14sp"
+                    android:background="#1c1c1c"
+                    android:padding="10dp"
+                    android:layout_marginTop="4dp"
+                    android:gravity="top"
+                    android:minLines="8"
+                    android:inputType="textMultiLine|textCapSentences" />
+
+                <!-- 사진 선택 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/btnPickPhotos"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🖼 사진 선택"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/photoCount"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="10dp"
+                        android:text="선택된 사진 없음"
+                        android:textColor="#9a9a9a"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnClearPhotos"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="비우기"
+                        android:textSize="11sp"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/photoStrip"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <!-- 포스팅 버튼 -->
+                <Button
+                    android:id="@+id/btnPost"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="📤 블로그 포스팅"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#03c75a"
+                    android:textColor="#ffffff" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="18dp"
+                    android:background="#2a2a2a" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="SNS 공유 (포스팅 완료 후)"
+                    android:textColor="#9a9a9a"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/postedUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="아직 게시된 글이 없습니다"
+                    android:textColor="#5a5a5a"
+                    android:textSize="11sp"
+                    android:autoLink="web" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="8dp">
+
+                    <Button android:id="@+id/btnFb" style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:minWidth="0dp"
+                        android:text="페북" android:textSize="11sp"
+                        android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+                    <Button android:id="@+id/btnLi" style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:minWidth="0dp"
+                        android:text="링크드인" android:textSize="11sp"
+                        android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+                    <Button android:id="@+id/btnIg" style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:minWidth="0dp"
+                        android:text="인스타" android:textSize="11sp"
+                        android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+                    <Button android:id="@+id/btnTh" style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:minWidth="0dp"
+                        android:text="스레드" android:textSize="11sp"
+                        android:paddingStart="2dp" android:paddingEnd="2dp" />
+
+                    <Button android:id="@+id/btnX" style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:minWidth="0dp"
+                        android:text="X" android:textSize="11sp"
+                        android:paddingStart="2dp" android:paddingEnd="2dp" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnPostAll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="🚀 전체 SNS 일괄 포스팅"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#7c6ff7"
+                    android:textColor="#ffffff" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp" />
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- 포스팅용 WebView (포스팅 중에만 보임) -->
+        <WebView
+            android:id="@+id/web"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>
