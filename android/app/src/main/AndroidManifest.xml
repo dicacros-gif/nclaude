@@ -6,6 +6,7 @@
 
     <!-- SNS 앱 패키지 가시성 (Android 11+) -->
     <queries>
+        <package android:name="com.nhn.android.blog" />
         <package android:name="com.facebook.katana" />
         <package android:name="com.instagram.android" />
         <package android:name="com.instagram.barcelona" />

@@ -22,7 +22,8 @@ object Formatter {
         val text: String,
         val bold: Boolean,
         val color: String?,
-        val hilite: String?
+        val hilite: String?,
+        val size: Int? = null
     )
 
     private const val WORD_HILITE = "#fff34f"   // 중요 단어 노랑 형광
@@ -42,12 +43,19 @@ object Formatter {
 
     private fun classify(line: String, isFirst: Boolean): Seg? = when {
         isDivider(line) -> null
-        isFirst -> Seg(line, true, "#1d4ed8", null)
-        line.startsWith("❝") -> Seg(line, true, null, WORD_HILITE)
+        isFirst -> Seg(line, true, "#1d4ed8", null, 18)
+        line.startsWith("❝") || isHead(line) -> Seg(line, true, "#222222", WORD_HILITE, 17)
         line.startsWith("#") -> Seg(line, false, "#2563eb", null)
         line.length <= 60 && HILITE_KEYWORDS.any { line.contains(it) } ->
             Seg(line, true, "#d6336c", "#fff3bf")
         else -> null
+    }
+
+    /** 소제목 마커 — ❝ 외에 【 ▶ ■ ◆ ✔ Q. A. 로 시작하는 줄도 소제목 처리 */
+    private fun isHead(s: String): Boolean {
+        val t = s.trim()
+        return t.startsWith("【") || t.startsWith("▶") || t.startsWith("■") ||
+            t.startsWith("◆") || t.startsWith("✔") || t.startsWith("Q.") || t.startsWith("A.")
     }
 
     /** 줄 단위 서식 세그먼트(서식 없는 줄은 제외) */
@@ -93,6 +101,7 @@ object Formatter {
         .put("bold", s.bold)
         .put("color", s.color ?: JSONObject.NULL)
         .put("hilite", s.hilite ?: JSONObject.NULL)
+        .put("size", s.size ?: JSONObject.NULL)
 
     // ---------------------------------------------------------------
     //  클립보드 붙여넣기 폴백용 HTML (서식 포함 본문 전체)
@@ -115,16 +124,19 @@ object Formatter {
     }
 
     private fun paragraphHtml(line: String, seg: Seg?): String {
-        val styled = seg != null && (seg.bold || seg.color != null || seg.hilite != null)
+        val styled = seg != null &&
+            (seg.bold || seg.color != null || seg.hilite != null || seg.size != null)
         return if (styled) {
             val style = buildString {
+                append("line-height:1.7;")
                 if (seg!!.bold) append("font-weight:bold;")
                 seg.color?.let { append("color:").append(it).append(";") }
-                seg.hilite?.let { append("background-color:").append(it).append(";") }
+                seg.hilite?.let { append("background-color:").append(it).append(";padding:1px 3px;") }
+                seg.size?.let { append("font-size:").append(it).append("px;") }
             }
             "<p style=\"$style\">${esc(line)}</p>"
         } else {
-            "<p>${inlineWrap(esc(line))}</p>"
+            "<p style=\"line-height:1.7\">${inlineWrap(esc(line))}</p>"
         }
     }
 
@@ -134,7 +146,7 @@ object Formatter {
             if (out.contains(w)) {
                 out = out.replace(
                     w,
-                    "<b><span style=\"background-color:$WORD_HILITE\">$w</span></b>"
+                    "<b><span style=\"color:#d6336c;background-color:$WORD_HILITE;padding:1px 2px;\">$w</span></b>"
                 )
             }
         }

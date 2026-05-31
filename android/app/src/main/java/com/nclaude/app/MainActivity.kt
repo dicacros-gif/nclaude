@@ -5,9 +5,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
+import android.text.InputType
 import android.text.TextWatcher
 import android.view.View
 import android.webkit.CookieManager
@@ -62,6 +64,9 @@ class MainActivity : AppCompatActivity() {
     private var chromeCollapsed = false      // 포스팅 중 상단 도구·로그 접힘 상태
     private var guideShown = false           // 포스팅 1회당 사용법 안내 1번만 자동 표시
     private var hookVariant = 0              // ‘다시 생성’ 누를 때마다 후킹 조합 회전
+
+    private var blogGuideShown = false       // 블로그 앱 붙여넣기 안내 1회
+    private val snsCardInputs = HashMap<String, EditText>()  // SNS별 카드 입력칸
 
     // 포스팅 상태
     private var posting = false
@@ -289,6 +294,9 @@ class MainActivity : AppCompatActivity() {
             regenHook()
         }
         findViewById<Button>(R.id.btnCopyTitleHome).setOnClickListener { copyTitleToClipboard() }
+        findViewById<Button>(R.id.btnCopyTitleApp).setOnClickListener { copyTitleToClipboard() }
+        findViewById<Button>(R.id.btnCopyBodyApp).setOnClickListener { copyBodyToClipboard() }
+        findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { openNaverBlogApp() }
         findViewById<Button>(R.id.btnPickPhotos).setOnClickListener {
             pickPhotos.launch(
                 PickVisualMediaRequest.Builder()
@@ -643,12 +651,7 @@ class MainActivity : AppCompatActivity() {
     //  SNS 공유
     // ---------------------------------------------------------------
     private fun setupSns() {
-        findViewById<Button>(R.id.btnFb).setOnClickListener { shareOne("facebook") }
-        findViewById<Button>(R.id.btnLi).setOnClickListener { shareOne("linkedin") }
-        findViewById<Button>(R.id.btnIg).setOnClickListener { shareOne("instagram") }
-        findViewById<Button>(R.id.btnTh).setOnClickListener { shareOne("threads") }
-        findViewById<Button>(R.id.btnX).setOnClickListener { shareOne("x") }
-        findViewById<Button>(R.id.btnPostAll).setOnClickListener { shareAll() }
+        buildSnsCards(findViewById(R.id.snsCards))
         findViewById<Button>(R.id.btnGenHook).setOnClickListener {
             hookVariant++                       // 매번 다른 후킹 조합으로 회전
             regenHook(force = true)
@@ -694,6 +697,7 @@ class MainActivity : AppCompatActivity() {
         val urlInSource = Regex("https?://\\S+").find(source)?.value
         val url = urlInSource ?: publishedUrl?.let { mobileShareUrl(it) } ?: ""
         hookOutput.setText(SnsShare.buildHook(source, url, hookVariant))
+        regenSnsCards()
     }
 
     /** 후킹 메시지 박스의 현재 문구를 클립보드로 복사 */
@@ -723,6 +727,182 @@ class MainActivity : AppCompatActivity() {
     private fun copyHook(text: String) {
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cb.setPrimaryClip(ClipData.newPlainText("hook", text))
+    }
+
+    // ---------------------------------------------------------------
+    //  앱 열기 + 복사 → 붙여넣기 (웹뷰 자동입력 우회)
+    // ---------------------------------------------------------------
+
+    /** 네이버 블로그 앱 열기(+본문 서식 복사). 미설치면 스토어로 유도. */
+    private fun openNaverBlogApp() {
+        copyBodyToClipboard()                 // 본문(서식 HTML)을 먼저 클립보드에 올려둠
+        val pkg = "com.nhn.android.blog"
+        val intent = packageManager.getLaunchIntentForPackage(pkg)
+        if (intent != null) {
+            startActivity(intent)
+            showBlogAppGuide()
+        } else {
+            toast("네이버 블로그 앱이 없습니다 — 스토어로 이동합니다")
+            openStore(pkg)
+        }
+    }
+
+    /** 플레이스토어(없으면 웹)로 해당 패키지 페이지 열기 */
+    private fun openStore(pkg: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg")))
+        } catch (e: Exception) {
+            try {
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://play.google.com/store/apps/details?id=$pkg")
+                    )
+                )
+            } catch (_: Exception) {}
+        }
+    }
+
+    /** 블로그 앱에서 붙여넣는 방법 안내(1회) */
+    private fun showBlogAppGuide() {
+        if (blogGuideShown) return
+        blogGuideShown = true
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("블로그 앱에 붙여넣기")
+            .setMessage(
+                "제목·본문이 클립보드에 준비됐어요(본문은 서식 포함).\n\n" +
+                    "① 블로그 앱에서 '글쓰기'를 누르세요\n" +
+                    "② 홈 화면 '① 제목 복사'로 제목을 복사해 두고,\n" +
+                    "    제목칸을 길게 눌러 '붙여넣기'\n" +
+                    "③ '② 본문 복사(서식)' 후 본문칸을 길게 눌러 '붙여넣기'\n" +
+                    "    → 소제목·색상·하이라이트가 그대로 들어갑니다\n\n" +
+                    "※ 일부 기기는 본문칸에서 '서식 있는 붙여넣기'를 골라야 색이 유지됩니다."
+            )
+            .setPositiveButton("확인", null)
+            .show()
+    }
+
+    /** 임의 SNS 앱 열기(미설치면 스토어). */
+    private fun openApp(pkg: String, label: String) {
+        val intent = packageManager.getLaunchIntentForPackage(pkg)
+        if (intent != null) {
+            startActivity(intent)
+        } else {
+            toast("$label 앱이 없습니다 — 스토어로 이동합니다")
+            openStore(pkg)
+        }
+    }
+
+    /** SNS 카드 입력칸의 현재 문구를 클립보드로 복사 */
+    private fun copyPlatform(id: String) {
+        val input = snsCardInputs[id] ?: return
+        val t = input.text?.toString()?.takeIf { it.isNotBlank() }
+        if (t == null) { toast("먼저 공유 원문을 입력/생성하세요"); return }
+        copyHook(t)
+        toast("${SnsShare.platform(id).label} 문구 복사됨 — 앱에서 길게 눌러 붙여넣기")
+    }
+
+    /** SNS별 카드 문구를 (원문/제목/URL 기준) 다시 생성해 각 입력칸에 채운다. */
+    private fun regenSnsCards() {
+        if (snsCardInputs.isEmpty()) return
+        val source = snsInput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: titleInput.text?.toString()?.takeIf { it.isNotBlank() }
+            ?: contentInput.text.toString()
+        if (source.isBlank()) return
+        val urlInSource = Regex("https?://\\S+").find(source)?.value
+        val url = urlInSource ?: publishedUrl?.let { mobileShareUrl(it) } ?: ""
+        for (p in SnsShare.PLATFORMS) {
+            snsCardInputs[p.id]?.setText(SnsShare.buildFor(p.id, source, url, hookVariant))
+        }
+    }
+
+    /** 카드 상단 안내(플랫폼 형식 요약) */
+    private fun platformHint(id: String): String = when (id) {
+        "facebook" -> "길게 · 이모지 · 링크 미리보기"
+        "linkedin" -> "전문적 · 이모지 없이 · 해시태그"
+        "instagram" -> "캡션형 · 링크는 프로필 · 해시태그 많이"
+        "threads" -> "캐주얼 · 짧게 · 해시태그 소량"
+        "x" -> "아주 짧게(280자) · 해시태그 2개"
+        else -> ""
+    }
+
+    /** SNS별 카드(라벨 + 편집 가능한 문구칸 + 복사/앱열기)를 코드로 생성 */
+    private fun buildSnsCards(container: LinearLayout) {
+        container.removeAllViews()
+        snsCardInputs.clear()
+        for (p in SnsShare.PLATFORMS) {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(0xFF15140b.toInt())
+                setPadding(dp(10), dp(8), dp(10), dp(10))
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(8) }
+            }
+
+            val label = TextView(this).apply {
+                text = "${p.label}  ·  ${platformHint(p.id)}"
+                setTextColor(0xFF1b1226.toInt())
+                textSize = 12f
+                setTypeface(typeface, Typeface.BOLD)
+                setBackgroundColor(0xFFb9a7ff.toInt())
+                setPadding(dp(8), dp(4), dp(8), dp(4))
+            }
+            card.addView(label)
+
+            val input = EditText(this).apply {
+                setTextColor(0xFFFFE27A.toInt())
+                setHintTextColor(0xFF5a5a5a.toInt())
+                hint = "공유 원문을 넣으면 ${p.label} 형식으로 자동 생성됩니다"
+                textSize = 13f
+                setBackgroundColor(0xFF1C1C1C.toInt())
+                setPadding(dp(10), dp(8), dp(10), dp(8))
+                gravity = android.view.Gravity.TOP
+                inputType = InputType.TYPE_CLASS_TEXT or
+                    InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                setHorizontallyScrolling(false)
+                maxLines = 12
+                isVerticalScrollBarEnabled = true
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) }
+            }
+            enableInnerScroll(input)
+            card.addView(input)
+            snsCardInputs[p.id] = input
+
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(6) }
+            }
+            val btnCopy = Button(this).apply {
+                text = "📋 복사"
+                textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                )
+                setOnClickListener { copyPlatform(p.id) }
+            }
+            val btnOpen = Button(this).apply {
+                text = "📱 ${p.label} 열기"
+                textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                ).apply { marginStart = dp(6) }
+                setOnClickListener { copyPlatform(p.id); openApp(p.pkg, p.label) }
+            }
+            row.addView(btnCopy)
+            row.addView(btnOpen)
+            card.addView(row)
+
+            container.addView(card)
+        }
+        regenSnsCards()
     }
 
     private fun shareOne(platformId: String) {

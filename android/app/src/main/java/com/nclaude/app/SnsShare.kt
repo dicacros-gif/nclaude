@@ -77,6 +77,126 @@ object SnsShare {
         return sb.toString()
     }
 
+    // ───────────────────────────────────────────────────────────────
+    //  플랫폼별 맞춤 문구 — 각 SNS 형식이 달라 따로 생성(복사·붙여넣기용)
+    //   facebook : 길게(블록+이모지+CTA+URL · 링크 미리보기)
+    //   threads  : 캐주얼·짧게(블록 3개+이모지+CTA+URL+해시태그 소량)
+    //   x        : 아주 짧게(핵심 줄+해시태그+URL · 280자 목표)
+    //   linkedin : 전문적(이모지 없이 문단+CTA+URL+해시태그)
+    //   instagram: 캡션형(블록+이모지+'링크는 프로필'+해시태그 다수)
+    // ───────────────────────────────────────────────────────────────
+    fun buildFor(platformId: String, source: String, url: String, variant: Int = 0): String {
+        val resolvedUrl = if (url.isNotBlank()) url else extractUrl(source)
+        val lead = leadText(source, resolvedUrl)
+        val blocks = splitHookBlocks(lead).ifEmpty {
+            if (lead.isNotBlank()) listOf(lead) else emptyList()
+        }
+        if (blocks.isEmpty()) return ""
+        val v = if (variant < 0) -variant else variant
+        val emo = MID_SETS[v % MID_SETS.size]
+        val cta = CTAS[v % CTAS.size]
+        val tags = hashtags(lead)
+        return when (platformId) {
+            "x" -> buildX(blocks, emo, tags, resolvedUrl)
+            "instagram" -> buildInstagram(blocks, emo, cta, tags, resolvedUrl)
+            "threads" -> buildThreads(blocks, emo, cta, tags, resolvedUrl)
+            "linkedin" -> buildLinkedIn(blocks, cta, tags, resolvedUrl)
+            else -> buildFacebook(blocks, emo, cta, resolvedUrl)
+        }
+    }
+
+    private fun joinWithEmoji(blocks: List<String>, emo: List<String>): String {
+        val sb = StringBuilder()
+        for ((i, b) in blocks.withIndex()) {
+            if (i > 0) sb.append('\n')
+            sb.append(emo[i % emo.size]).append(' ').append(b)
+        }
+        return sb.toString()
+    }
+
+    private fun buildFacebook(blocks: List<String>, emo: List<String>, cta: String, url: String): String {
+        val sb = StringBuilder(joinWithEmoji(blocks, emo))
+        if (url.isNotBlank()) sb.append("\n\n").append(cta).append('\n').append(url)
+        return sb.toString()
+    }
+
+    private fun buildThreads(
+        blocks: List<String>, emo: List<String>, cta: String, tags: List<String>, url: String
+    ): String {
+        val sb = StringBuilder(joinWithEmoji(blocks.take(3), emo))
+        if (url.isNotBlank()) sb.append("\n\n").append(cta).append('\n').append(url)
+        if (tags.isNotEmpty()) sb.append('\n').append(tags.take(3).joinToString(" "))
+        return sb.toString()
+    }
+
+    private fun buildLinkedIn(
+        blocks: List<String>, cta: String, tags: List<String>, url: String
+    ): String {
+        val sb = StringBuilder(blocks.joinToString("\n\n"))
+        if (url.isNotBlank()) sb.append("\n\n").append(cta).append('\n').append(url)
+        if (tags.isNotEmpty()) sb.append("\n\n").append(tags.take(5).joinToString(" "))
+        return sb.toString()
+    }
+
+    private fun buildX(blocks: List<String>, emo: List<String>, tags: List<String>, url: String): String {
+        val limit = 270
+        val tagStr = if (tags.isNotEmpty()) tags.take(2).joinToString(" ") else ""
+        val reserve = (if (url.isNotBlank()) url.length + 1 else 0) +
+            (if (tagStr.isNotEmpty()) tagStr.length + 1 else 0)
+        val budget = (limit - reserve).coerceAtLeast(20)
+        val sb = StringBuilder()
+        for ((i, b) in blocks.withIndex()) {
+            val piece = (if (i > 0) "\n" else "") + emo[i % emo.size] + " " + b
+            if (sb.length + piece.length > budget) break
+            sb.append(piece)
+        }
+        if (sb.isEmpty()) {
+            val first = emo[0] + " " + blocks[0]
+            sb.append(if (first.length > budget) first.substring(0, budget - 1) + "…" else first)
+        }
+        if (tagStr.isNotEmpty()) sb.append('\n').append(tagStr)
+        if (url.isNotBlank()) sb.append('\n').append(url)
+        return sb.toString()
+    }
+
+    private fun buildInstagram(
+        blocks: List<String>, emo: List<String>, cta: String, tags: List<String>, url: String
+    ): String {
+        val sb = StringBuilder(joinWithEmoji(blocks, emo))
+        sb.append("\n\n").append(cta)
+        if (url.isNotBlank()) sb.append("\n🔗 링크는 프로필에서 확인하세요\n").append(url)
+        if (tags.isNotEmpty()) sb.append("\n\n").append(tags.joinToString(" "))
+        return sb.toString()
+    }
+
+    // 핵심 텍스트에서 해시태그 자동 추출(카드에서 직접 수정 가능)
+    private val STOP = hashSetOf(
+        "그리고", "하지만", "그런데", "그래서", "우리", "오늘", "정말", "지금", "너무",
+        "위해", "대한", "했다", "한다", "하는", "있는", "없는", "에서", "으로", "까지"
+    )
+    private val JOSA = listOf(
+        "으로", "에서", "에게", "까지", "부터", "이라", "라고", "처럼", "보다", "마다",
+        "은", "는", "이", "가", "을", "를", "의", "에", "도", "로", "과", "와"
+    )
+    private fun stripJosa(w: String): String {
+        for (j in JOSA) if (w.length > j.length + 1 && w.endsWith(j)) return w.dropLast(j.length)
+        return w
+    }
+    private fun hashtags(lead: String, max: Int = 8): List<String> {
+        val seen = LinkedHashSet<String>()
+        for (raw in lead.split(Regex("[\\s,./!?\"'()\\[\\]{}·:;~\\-…]+"))) {
+            var w = raw.trim().trim('#')
+            if (w.length < 2) continue
+            w = stripJosa(w)
+            if (w.length < 2 || w in STOP) continue
+            if (!w.any { it.isLetter() }) continue
+            if (w.length > 12) w = w.substring(0, 12)
+            seen.add("#$w")
+            if (seen.size >= max) break
+        }
+        return seen.toList()
+    }
+
     private fun extractUrl(s: String): String = URL_RE.find(s)?.value ?: ""
 
     /**

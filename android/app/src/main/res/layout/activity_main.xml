@@ -390,6 +390,65 @@
                     android:backgroundTint="#03c75a"
                     android:textColor="#ffffff" />
 
+                <!-- 블로그 앱으로 작성 (복사 → 붙여넣기) : 웹뷰 입력이 안 될 때 우회 -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="📱 블로그 앱으로 작성 (복사 → 붙여넣기)"
+                    android:textColor="#03c75a"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="① 제목 복사 → 앱 제목칸에 붙여넣기  ②본문 복사(서식) → 본문칸에 붙여넣기"
+                    android:textColor="#7a7a7a"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp">
+
+                    <Button
+                        android:id="@+id/btnCopyTitleApp"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minWidth="0dp"
+                        android:text="① 제목 복사"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnCopyBodyApp"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:minWidth="0dp"
+                        android:text="② 본문 복사(서식)"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:backgroundTint="#03c75a"
+                        android:textColor="#ffffff" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnOpenBlogApp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="📱 네이버 블로그 앱 열기"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#03c75a"
+                    android:textColor="#ffffff" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
@@ -496,53 +555,21 @@
                         android:textColor="#ffffff" />
                 </LinearLayout>
 
+                <!-- SNS별 개별 복사: 앱마다 형식이 달라 카드를 따로 생성(코드에서 동적 구성) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="SNS별 개별 복사 (앱마다 형식 다름 · 복사 후 앱 열기)"
+                    android:textColor="#9a9a9a"
+                    android:textSize="12sp" />
+
                 <LinearLayout
+                    android:id="@+id/snsCards"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="8dp">
-
-                    <Button android:id="@+id/btnFb" style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:minWidth="0dp"
-                        android:text="페북" android:textSize="11sp"
-                        android:paddingStart="2dp" android:paddingEnd="2dp" />
-
-                    <Button android:id="@+id/btnLi" style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:minWidth="0dp"
-                        android:text="링크드인" android:textSize="11sp"
-                        android:paddingStart="2dp" android:paddingEnd="2dp" />
-
-                    <Button android:id="@+id/btnIg" style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:minWidth="0dp"
-                        android:text="인스타" android:textSize="11sp"
-                        android:paddingStart="2dp" android:paddingEnd="2dp" />
-
-                    <Button android:id="@+id/btnTh" style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:minWidth="0dp"
-                        android:text="스레드" android:textSize="11sp"
-                        android:paddingStart="2dp" android:paddingEnd="2dp" />
-
-                    <Button android:id="@+id/btnX" style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp" android:layout_height="wrap_content"
-                        android:layout_weight="1" android:minWidth="0dp"
-                        android:text="X" android:textSize="11sp"
-                        android:paddingStart="2dp" android:paddingEnd="2dp" />
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/btnPostAll"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="🚀 전체 SNS 일괄 포스팅"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#7c6ff7"
-                    android:textColor="#ffffff" />
+                    android:orientation="vertical"
+                    android:layout_marginTop="2dp" />
 
                 <View
                     android:layout_width="match_parent"
