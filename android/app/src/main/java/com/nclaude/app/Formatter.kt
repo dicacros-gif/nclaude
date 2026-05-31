@@ -26,7 +26,8 @@ object Formatter {
         val size: Int? = null
     )
 
-    private const val WORD_HILITE = "#fff34f"   // 중요 단어 노랑 형광
+    const val WORD_HILITE = "#fff34f"   // 중요 단어 노랑 형광
+    const val WORD_COLOR = "#d6336c"    // 중요 단어 글자색(자홍)
 
     // 핵심 '문장' 판정 키워드
     private val HILITE_KEYWORDS = listOf(
@@ -35,7 +36,7 @@ object Formatter {
     )
 
     // 본문 어디에 나오든 인라인 강조할 '단어'(임팩트어) — 기기에서 조정 가능
-    private val IMPORTANT_WORDS = listOf(
+    val IMPORTANT_WORDS = listOf(
         "급등", "급락", "폭발", "충격", "역대", "최초", "최대", "최고", "사상",
         "수혜", "피해", "승자", "경쟁", "전망", "핵심", "주의", "반드시",
         "논란", "호재", "악재", "변수", "기회", "위기"
@@ -74,6 +75,23 @@ object Formatter {
         val out = ArrayList<Seg>()
         for (w in IMPORTANT_WORDS) {
             if (content.contains(w)) out.add(Seg(w, true, null, WORD_HILITE))
+        }
+        return out
+    }
+
+    /**
+     * 미리보기 렌더용: 모든 줄(빈 줄 포함)의 줄 서식 정보.
+     * 서식 없는 줄은 plain Seg(텍스트만)로 반환 → 화면에 Spannable 로 그릴 때 사용.
+     */
+    fun lineSpecs(content: String): List<Seg> {
+        val out = ArrayList<Seg>()
+        var firstDone = false
+        for (raw in content.split('\n')) {
+            val ln = raw.trim()
+            if (ln.isEmpty()) { out.add(Seg("", false, null, null, null)); continue }
+            val isFirst = !firstDone
+            firstDone = true
+            out.add(classify(ln, isFirst) ?: Seg(ln, false, null, null, null))
         }
         return out
     }
@@ -150,6 +168,35 @@ object Formatter {
                 )
             }
         }
+        return out
+    }
+
+    // ---------------------------------------------------------------
+    //  '간단(볼드) 서식' 클립보드용 HTML — 색/형광 없이 굵게만.
+    //  소제목·글머리·핵심 문장 줄은 통째로 볼드, 중요 단어는 인라인 볼드.
+    // ---------------------------------------------------------------
+    fun bodyHtmlBold(body: String): String {
+        val sb = StringBuilder()
+        var firstDone = false
+        for (raw in body.split('\n')) {
+            val ln = raw.trim()
+            if (ln.isEmpty()) { sb.append("<p><br></p>"); continue }
+            val isFirst = !firstDone
+            firstDone = true
+            val seg = classify(ln, isFirst)
+            val inner = inlineBold(esc(ln))
+            if (seg != null && seg.bold) {
+                sb.append("<p style=\"line-height:1.7\"><b>").append(inner).append("</b></p>")
+            } else {
+                sb.append("<p style=\"line-height:1.7\">").append(inner).append("</p>")
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun inlineBold(escaped: String): String {
+        var out = escaped
+        for (w in IMPORTANT_WORDS) if (out.contains(w)) out = out.replace(w, "<b>$w</b>")
         return out
     }
 

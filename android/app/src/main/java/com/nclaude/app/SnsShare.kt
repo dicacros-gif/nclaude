@@ -46,6 +46,18 @@ object SnsShare {
         "👇 놓치지 마세요"
     )
 
+    // 맨 앞 후킹 오프너 — '다시 생성' 때마다 회전(이모지뿐 아니라 '문구'가 바뀜)
+    private val HOOK_LINES = listOf(
+        "🚨 이거 모르면 진짜 손해예요",
+        "😱 지금 안 보면 후회합니다",
+        "💡 아는 사람만 아는 꿀팁",
+        "🔥 다들 놓치는 핵심만 정리했어요",
+        "👀 딱 30초, 끝까지 보세요",
+        "⚠️ 모르면 큰일나는 정보",
+        "✅ 이건 꼭 알고 가세요",
+        "🤯 알고 나면 생각이 바뀝니다"
+    )
+
     private val URL_RE = Regex("https?://\\S+")
 
     /**
@@ -60,14 +72,15 @@ object SnsShare {
         val v = if (variant < 0) -variant else variant
         val emo = MID_SETS[v % MID_SETS.size]
         val cta = CTAS[v % CTAS.size]
+        val hook = HOOK_LINES[v % HOOK_LINES.size]
 
         val sb = StringBuilder()
+        sb.append(hook)                       // 회전 후킹 오프너 → 문구가 매번 달라짐
         if (blocks.isEmpty()) {
-            if (lead.isNotBlank()) sb.append(emo[0]).append(' ').append(lead)
+            if (lead.isNotBlank()) sb.append('\n').append(emo[0]).append(' ').append(lead)
         } else {
             for ((i, b) in blocks.withIndex()) {
-                if (i > 0) sb.append('\n')
-                sb.append(emo[i % emo.size]).append(' ').append(b)
+                sb.append('\n').append(emo[i % emo.size]).append(' ').append(b)
             }
         }
         if (resolvedUrl.isNotBlank()) {
@@ -95,13 +108,14 @@ object SnsShare {
         val v = if (variant < 0) -variant else variant
         val emo = MID_SETS[v % MID_SETS.size]
         val cta = CTAS[v % CTAS.size]
+        val hook = HOOK_LINES[v % HOOK_LINES.size]
         val tags = hashtags(lead)
         return when (platformId) {
             "x" -> buildX(blocks, emo, tags, resolvedUrl)
-            "instagram" -> buildInstagram(blocks, emo, cta, tags, resolvedUrl)
-            "threads" -> buildThreads(blocks, emo, cta, tags, resolvedUrl)
+            "instagram" -> buildInstagram(blocks, emo, cta, tags, resolvedUrl, hook)
+            "threads" -> buildThreads(blocks, emo, cta, tags, resolvedUrl, hook)
             "linkedin" -> buildLinkedIn(blocks, cta, tags, resolvedUrl)
-            else -> buildFacebook(blocks, emo, cta, resolvedUrl)
+            else -> buildFacebook(blocks, emo, cta, resolvedUrl, hook)
         }
     }
 
@@ -114,16 +128,18 @@ object SnsShare {
         return sb.toString()
     }
 
-    private fun buildFacebook(blocks: List<String>, emo: List<String>, cta: String, url: String): String {
-        val sb = StringBuilder(joinWithEmoji(blocks, emo))
+    private fun buildFacebook(
+        blocks: List<String>, emo: List<String>, cta: String, url: String, hook: String
+    ): String {
+        val sb = StringBuilder(hook).append('\n').append(joinWithEmoji(blocks, emo))
         if (url.isNotBlank()) sb.append("\n\n").append(cta).append('\n').append(url)
         return sb.toString()
     }
 
     private fun buildThreads(
-        blocks: List<String>, emo: List<String>, cta: String, tags: List<String>, url: String
+        blocks: List<String>, emo: List<String>, cta: String, tags: List<String>, url: String, hook: String
     ): String {
-        val sb = StringBuilder(joinWithEmoji(blocks.take(3), emo))
+        val sb = StringBuilder(hook).append('\n').append(joinWithEmoji(blocks.take(3), emo))
         if (url.isNotBlank()) sb.append("\n\n").append(cta).append('\n').append(url)
         if (tags.isNotEmpty()) sb.append('\n').append(tags.take(3).joinToString(" "))
         return sb.toString()
@@ -160,9 +176,9 @@ object SnsShare {
     }
 
     private fun buildInstagram(
-        blocks: List<String>, emo: List<String>, cta: String, tags: List<String>, url: String
+        blocks: List<String>, emo: List<String>, cta: String, tags: List<String>, url: String, hook: String
     ): String {
-        val sb = StringBuilder(joinWithEmoji(blocks, emo))
+        val sb = StringBuilder(hook).append('\n').append(joinWithEmoji(blocks, emo))
         sb.append("\n\n").append(cta)
         if (url.isNotBlank()) sb.append("\n🔗 링크는 프로필에서 확인하세요\n").append(url)
         if (tags.isNotEmpty()) sb.append("\n\n").append(tags.joinToString(" "))
@@ -206,12 +222,13 @@ object SnsShare {
      */
     private fun leadText(source: String, url: String): String {
         val ctaSet = (CTAS + CTA).toHashSet()
+        val hookSet = HOOK_LINES.map { stripLeadEmoji(it).trim() }.toHashSet()
         val parts = source.split('\n').map { it.trim() }
             .filter { line ->
                 line.isNotEmpty() && !line.startsWith("http") && line !in ctaSet
             }
             .map { stripLeadEmoji(it).trim() }
-            .filter { it.isNotEmpty() && !it.startsWith("http") }
+            .filter { it.isNotEmpty() && !it.startsWith("http") && it !in hookSet }
         if (parts.isNotEmpty()) return parts.joinToString(" ")
         return if (url.isNotBlank()) source.replace(url, "").trim() else source.trim()
     }

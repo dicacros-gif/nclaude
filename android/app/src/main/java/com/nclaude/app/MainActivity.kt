@@ -5,12 +5,19 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.TextWatcher
+import android.text.style.AbsoluteSizeSpan
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -43,6 +50,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var status: TextView
     private lateinit var titleInput: EditText
     private lateinit var contentInput: EditText
+    private lateinit var previewBold: TextView
+    private lateinit var previewRich: TextView
     private lateinit var photoStrip: LinearLayout
     private lateinit var photoCount: TextView
     private lateinit var btnClearPhotos: Button
@@ -104,6 +113,8 @@ class MainActivity : AppCompatActivity() {
         status = findViewById(R.id.status)
         titleInput = findViewById(R.id.titleInput)
         contentInput = findViewById(R.id.contentInput)
+        previewBold = findViewById(R.id.previewBold)
+        previewRich = findViewById(R.id.previewRich)
         photoStrip = findViewById(R.id.photoStrip)
         photoCount = findViewById(R.id.photoCount)
         btnClearPhotos = findViewById(R.id.btnClearPhotos)
@@ -197,6 +208,98 @@ class MainActivity : AppCompatActivity() {
         cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtml(c)))
         toast("본문 복사됨 — 네이버 본문칸을 길게 눌러 붙여넣기")
         setStatus("본문을 클립보드에 복사했어요 — 본문칸 길게 눌러 붙여넣기")
+    }
+
+    /** 본문을 '볼드만' 적용한 HTML 로 클립보드에 복사 — 색/형광 없이 굵게만(간단 서식) */
+    private fun copyBoldBody() {
+        val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
+        if (c == null) { toast("먼저 본문을 입력하세요"); return }
+        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtmlBold(c)))
+        toast("간단 서식(볼드) 복사됨 — 길게 눌러 붙여넣기")
+        setStatus("간단 서식(볼드)을 복사했어요 — 본문칸 길게 눌러 붙여넣기")
+    }
+
+    /** 본문 입력이 바뀔 때마다 두 미리보기 박스를 다시 그린다(볼드 전용 / 강조 서식). */
+    private fun refreshPreviews() {
+        val c = contentInput.text?.toString().orEmpty()
+        if (c.isBlank()) {
+            val ph = "본문을 입력하면 여기에 미리보기가 표시됩니다"
+            previewBold.text = ph
+            previewRich.text = ph
+            return
+        }
+        previewBold.text = buildPreview(c, rich = false)
+        previewRich.text = buildPreview(c, rich = true)
+    }
+
+    /**
+     * 본문을 Spannable 로 렌더(미리보기). rich=false 면 볼드만, rich=true 면 색/형광/크기까지.
+     * 줄 단위 서식(소제목·글머리·핵심문장) + 단어 단위 강조를 함께 적용한다.
+     * → Html.fromHtml 로는 배경 형광색이 칠해지지 않으므로 직접 Span 으로 그린다.
+     */
+    private fun buildPreview(content: String, rich: Boolean): CharSequence {
+        val sb = SpannableStringBuilder()
+        val specs = Formatter.lineSpecs(content)
+        for ((i, seg) in specs.withIndex()) {
+            val start = sb.length
+            sb.append(seg.text)
+            val end = sb.length
+            if (end > start) {
+                if (seg.bold) {
+                    sb.setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                if (rich) {
+                    seg.color?.let {
+                        runCatching {
+                            sb.setSpan(ForegroundColorSpan(Color.parseColor(it)),
+                                start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                    }
+                    seg.hilite?.let {
+                        runCatching {
+                            sb.setSpan(BackgroundColorSpan(Color.parseColor(it)),
+                                start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                    }
+                    seg.size?.let {
+                        sb.setSpan(AbsoluteSizeSpan(it, true),
+                            start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                }
+            }
+            // 줄 안에 등장하는 중요 단어를 인라인 강조(볼드, rich 면 글자색+형광)
+            applyWordSpans(sb, start, seg.text, rich)
+            if (i < specs.size - 1) sb.append('\n')
+        }
+        return sb
+    }
+
+    /** 한 줄(lineText) 안의 중요 단어를 모두 찾아 볼드(+rich 면 색/형광) 스팬을 더한다. */
+    private fun applyWordSpans(
+        sb: SpannableStringBuilder, lineStart: Int, lineText: String, rich: Boolean
+    ) {
+        for (w in Formatter.IMPORTANT_WORDS) {
+            var from = 0
+            while (true) {
+                val idx = lineText.indexOf(w, from)
+                if (idx < 0) break
+                val s = lineStart + idx
+                val e = s + w.length
+                sb.setSpan(StyleSpan(Typeface.BOLD), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                if (rich) {
+                    runCatching {
+                        sb.setSpan(ForegroundColorSpan(Color.parseColor(Formatter.WORD_COLOR)),
+                            s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                    runCatching {
+                        sb.setSpan(BackgroundColorSpan(Color.parseColor(Formatter.WORD_HILITE)),
+                            s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    }
+                }
+                from = idx + w.length
+            }
+        }
     }
 
     /** 붙여넣기(append): 에디터의 기존 내용을 지우지 않고 커서 끝에 제목/본문을 추가 */
@@ -297,6 +400,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnCopyTitleApp).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnCopyBodyApp).setOnClickListener { copyBodyToClipboard() }
         findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { openNaverBlogApp() }
+        findViewById<Button>(R.id.btnCopyBold).setOnClickListener { copyBoldBody() }
+        findViewById<Button>(R.id.btnCopyRich).setOnClickListener { copyBodyToClipboard() }
         findViewById<Button>(R.id.btnPickPhotos).setOnClickListener {
             pickPhotos.launch(
                 PickVisualMediaRequest.Builder()
@@ -315,6 +420,7 @@ class MainActivity : AppCompatActivity() {
                 if (!titleEdited) {
                     setTitleProgrammatically(TitleGen.generate(contentInput.text.toString()))
                 }
+                refreshPreviews()
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -331,6 +437,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         enableInnerScroll(contentInput)
+        refreshPreviews()
     }
 
     /** 제목을 코드로 채울 때(자동생성 등) — TextWatcher 가 '사용자 수정'으로 오인하지 않게 */
@@ -391,10 +498,10 @@ class MainActivity : AppCompatActivity() {
         web.settings.useWideViewPort = true
         web.settings.builtInZoomControls = true
         web.settings.displayZoomControls = false
-        // PC 스마트에디터(.se-*)를 받기 위해 데스크톱 UA 강제
+        // 모바일 네이버 글쓰기(터치 입력/붙여넣기가 더 잘 됨)를 받기 위해 모바일 UA 강제
         web.settings.userAgentString =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Linux; Android 14; SM-S918N) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
         web.addJavascriptInterface(AndroidPoster(), "AndroidPoster")
 
         // 웹뷰 터치 포커스 버그 보정: 입력창을 탭해도 포커스/키보드/커서가
@@ -417,6 +524,15 @@ class MainActivity : AppCompatActivity() {
                 if (Accounts.isLoggedIn()) Accounts.saveCurrentFor(this@MainActivity, currentAccount)
                 if (!posting) return
                 if (isPublishedUrl(url)) { onPublished(url); return }
+                // 모바일 글쓰기 페이지: PC 스마트에디터 자동입력 JS 가 안 통하므로
+                // 자동주입 대신 '복사 → 길게 눌러 붙여넣기' 안내로 전환(본문 서식은 클립보드에 준비됨).
+                if (url.contains("m.blog.naver.com") && !isPublishedUrl(url)) {
+                    progress.visibility = View.GONE
+                    setStatus("모바일 글쓰기 — 제목·본문칸을 길게 눌러 붙여넣기 (본문 서식 복사됨)")
+                    dbg("모바일 글쓰기 페이지: ${shortUrl(url)}")
+                    if (!guideShown) { showManualGuide(); guideShown = true }
+                    return
+                }
                 if (filled) return
                 // 로그인/리다이렉트를 거쳐 에디터 페이지가 뜰 때마다 (재)주입.
                 // 실제 에디터 탐색·로그인 감지는 JS(__NB_run)가 자체 폴링으로 처리.

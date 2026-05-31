@@ -17,8 +17,9 @@ object Accounts {
 
     val IDS = listOf("dicajohn", "macdcross")
 
-    fun writeUrl(id: String) = "https://blog.naver.com/$id?Redirect=Write&"
-    fun homeUrl(id: String) = "https://blog.naver.com/$id"
+    // 모바일 글쓰기(터치 입력/붙여넣기가 더 잘 됨). PC 에디터가 입력이 안 돼서 모바일로 전환.
+    fun writeUrl(id: String) = "https://m.blog.naver.com/$id?Redirect=Write&"
+    fun homeUrl(id: String) = "https://m.blog.naver.com/$id"
 
     private const val PREFS = "nclaude_accounts"
     private val HOSTS = listOf(
