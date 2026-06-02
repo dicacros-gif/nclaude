@@ -24,6 +24,18 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnLogin"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:text="🔑 로그인"
+            android:textSize="11sp"
+            android:minWidth="0dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp" />
+
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/accountGroup"
             android:layout_width="wrap_content"
@@ -36,7 +48,7 @@
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="dicajohn"
+                android:text="macdcross"
                 android:textSize="11sp"
                 android:minWidth="0dp"
                 android:paddingStart="10dp"
@@ -47,7 +59,7 @@
                 style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="macdcross"
+                android:text="dicajohn"
                 android:textSize="11sp"
                 android:minWidth="0dp"
                 android:paddingStart="10dp"
@@ -232,7 +244,13 @@
             android:id="@+id/form"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:fillViewport="true"
+            android:verticalScrollbarPosition="left"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="false"
+            android:scrollbarSize="18dp"
+            android:scrollbarThumbVertical="@drawable/scroll_thumb"
+            android:scrollbarStyle="insideInset">
 
             <LinearLayout
                 android:layout_width="match_parent"

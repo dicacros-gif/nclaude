@@ -282,7 +282,7 @@ object Formatter {
         for (seg in analyze(body)) {
             val inner = inlineBold(esc(seg.text))
             if (seg.bold) {
-                sb.append("<p><strong style=\"font-weight:700\">").append(inner).append("</strong></p>")
+                sb.append("<p><b><strong>").append(inner).append("</strong></b></p>")
             } else {
                 sb.append("<p>").append(inner).append("</p>")
             }
@@ -293,7 +293,7 @@ object Formatter {
     private fun inlineBold(escaped: String): String {
         var out = escaped
         for (w in IMPORTANT_WORDS) if (out.contains(w))
-            out = out.replace(w, "<strong style=\"font-weight:700\">$w</strong>")
+            out = out.replace(w, "<b><strong>$w</strong></b>")
         return out
     }
 
@@ -312,15 +312,16 @@ object Formatter {
         return sb.toString()
     }
 
-    /** 한 줄 전체에 줄 서식(굵게/글자색/형광)을 감싼다. 볼드는 태그+인라인 두 경로로 보장. */
+    /**
+     * 한 줄 전체에 줄 서식(굵게/글자색/형광)을 감싼다.
+     * 안드로이드 수신 앱은 CSS(style)를 무시하고 레거시 태그(b/font)만 받는 경우가 많아
+     * <b> + <font color> + <span style>(배경색) 를 함께 써서 호환성을 최대화한다.
+     */
     private fun naverSpan(escaped: String, seg: Seg): String {
-        val style = buildString {
-            if (seg.bold) append("font-weight:700;")
-            seg.color?.let { append("color:").append(it).append(";") }
-            seg.hilite?.let { append("background-color:").append(it).append(";") }
-        }
-        var inner = if (style.isNotEmpty()) "<span style=\"$style\">$escaped</span>" else escaped
-        if (seg.bold) inner = "<strong>$inner</strong>"
+        var inner = escaped
+        seg.hilite?.let { inner = "<span style=\"background-color:$it;\">$inner</span>" }
+        seg.color?.let { inner = "<font color=\"$it\"><span style=\"color:$it;\">$inner</span></font>" }
+        if (seg.bold) inner = "<b><strong>$inner</strong></b>"
         return inner
     }
 
@@ -330,8 +331,9 @@ object Formatter {
         for (w in IMPORTANT_WORDS) {
             if (out.contains(w)) out = out.replace(
                 w,
-                "<strong><span style=\"font-weight:700;color:${wordFg(w)};" +
-                    "background-color:${wordBg(w)};\">$w</span></strong>"
+                "<b><strong><font color=\"${wordFg(w)}\">" +
+                    "<span style=\"color:${wordFg(w)};background-color:${wordBg(w)};\">$w</span>" +
+                    "</font></strong></b>"
             )
         }
         return out

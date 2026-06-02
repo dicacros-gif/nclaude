@@ -81,6 +81,8 @@ class MainActivity : AppCompatActivity() {
     private var posting = false
     private var filled = false
     private var publishedUrl: String? = null
+    private var loginMode = false            // 상단 계정 선택 → 로그인 화면 모드
+    private var fillRetried = false          // 자동 입력 1회 자동 재시도 플래그
 
     // 사진 순차 삽입(일정 간격)
     private var photoSeq = false
@@ -368,9 +370,11 @@ class MainActivity : AppCompatActivity() {
     private fun setupAccounts() {
         findViewById<MaterialButton>(R.id.btnAcc1).text = Accounts.IDS[0]
         findViewById<MaterialButton>(R.id.btnAcc2).text = Accounts.IDS[1]
-        accountGroup.check(R.id.btnAcc1)
+        accountGroup.check(R.id.btnAcc1)     // IDS[0] = macdcross 가 기본 선택
+        findViewById<Button>(R.id.btnLogin).setOnClickListener { openLogin(currentAccount) }
         Accounts.applyTo(this, currentAccount) { had ->
             if (had) setStatus("${currentAccount} 세션 복원됨")
+            else setStatus("${currentAccount} : 로그인이 필요합니다 — '🔑 로그인' 또는 계정 버튼을 누르세요")
         }
         accountGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -384,8 +388,37 @@ class MainActivity : AppCompatActivity() {
         Accounts.saveCurrentFor(this, currentAccount) // 나가는 계정 쿠키 저장
         currentAccount = target
         Accounts.applyTo(this, target) { had ->
-            setStatus(if (had) "${target} 계정으로 전환됨" else "${target} : 포스팅 시 로그인이 필요합니다")
+            if (had) {
+                setStatus("${target} 계정으로 전환됨")
+            } else {
+                setStatus("${target} : 세션이 없어 로그인 화면을 엽니다")
+                openLogin(target)
+            }
         }
+    }
+
+    /** 상단 계정 선택/‘로그인’ → 네이버 로그인 페이지를 띄운다(로그인하면 세션 자동 저장). */
+    private fun openLogin(id: String) {
+        if (posting) { toast("포스팅 중에는 로그인할 수 없어요"); return }
+        loginMode = true
+        form.visibility = View.GONE
+        web.visibility = View.VISIBLE
+        progress.visibility = View.VISIBLE
+        setStatus("${id} 로그인 — 네이버에 로그인하면 세션이 저장됩니다")
+        dbg("로그인 화면 열기 ${id}")
+        web.loadUrl(Accounts.loginUrl(id))
+    }
+
+    /** 로그인(NID 쿠키) 감지되면 세션 저장 후 폼으로 복귀. */
+    private fun finishLogin() {
+        if (!loginMode) return
+        loginMode = false
+        Accounts.saveCurrentFor(this, currentAccount)
+        progress.visibility = View.GONE
+        web.visibility = View.GONE
+        form.visibility = View.VISIBLE
+        setStatus("${currentAccount} 로그인 완료 · 세션 저장됨 — 이제 포스팅할 수 있어요")
+        toast("${currentAccount} 로그인 완료")
     }
 
     // ---------------------------------------------------------------
@@ -533,6 +566,12 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (url == null) return
                 if (Accounts.isLoggedIn()) Accounts.saveCurrentFor(this@MainActivity, currentAccount)
+                if (loginMode) {
+                    if (Accounts.isLoggedIn()) finishLogin()
+                    else { progress.visibility = View.GONE
+                        setStatus("로그인 진행 중… 완료되면 자동으로 저장됩니다") }
+                    return
+                }
                 if (!posting) return
                 if (isPublishedUrl(url)) { onPublished(url); return }
                 // 모바일 글쓰기 페이지: PC 스마트에디터 자동입력 JS 가 안 통하므로
@@ -588,6 +627,7 @@ class MainActivity : AppCompatActivity() {
         }
         posting = true
         filled = false
+        fillRetried = false
         publishedUrl = null
         photoSeq = false
         photoFeed = null
@@ -616,13 +656,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun injectFill() {
+    private fun injectFill(retry: Boolean = false) {
         if (!posting) return
-        setStatus("에디터 탐색·입력 중…")
+        setStatus(if (retry) "자동 입력 재시도 중…" else "에디터 탐색·입력 중…")
         val payload: JSONObject =
             Formatter.payload(titleInput.text.toString(), contentInput.text.toString())
         web.evaluateJavascript(EditorJs.SCRIPT) {
-            web.evaluateJavascript("window.__NB_run($payload)", null)
+            // 재시도면 JS 완료 플래그를 풀어 __NB_run 이 다시 채우도록(덮어쓰기)
+            val pre = if (retry) "window.__NB_DONE=false;window.__NB_RUNNING=false;" else ""
+            web.evaluateJavascript(pre + "window.__NB_run($payload)", null)
         }
     }
 
@@ -673,6 +715,13 @@ class MainActivity : AppCompatActivity() {
         // 본문이 실제로 들어가지 않았으면(자동 입력 약함) 사진 단계로 진행하지 않는다.
         // → '사진 입력 중' 같은 잘못된 진행 메시지를 막고, 수동 복사/붙여넣기를 안내.
         if (bodyLen < 5) {
+            if (!fillRetried) {
+                fillRetried = true
+                filled = false
+                dbg("본문 ${bodyLen}자 → 1회 자동 재시도")
+                web.postDelayed({ if (posting && !filled) injectFill(retry = true) }, 1200)
+                return
+            }
             progress.visibility = View.GONE
             setStatus("자동 입력이 안 됐어요 — 상단 '내용 복사' 후 본문칸을 길게 눌러 붙여넣기 (❓사용법)")
             dbg("본문 ${bodyLen}자 → 사진 단계 중단, 수동 입력 안내")
@@ -927,8 +976,12 @@ class MainActivity : AppCompatActivity() {
     /** SNS 카드 입력칸의 현재 문구를 클립보드로 복사 */
     private fun copyPlatform(id: String) {
         val input = snsCardInputs[id] ?: return
-        val t = input.text?.toString()?.takeIf { it.isNotBlank() }
-        if (t == null) { toast("먼저 공유 원문을 입력/생성하세요"); return }
+        var t = input.text?.toString()?.takeIf { it.isNotBlank() }
+        if (t == null) {                       // 카드가 비었으면 즉석 생성 후 다시 시도
+            regenSnsCards()
+            t = input.text?.toString()?.takeIf { it.isNotBlank() }
+        }
+        if (t == null) { toast("먼저 공유 원문(또는 제목/본문)을 입력하세요"); return }
         copyHook(t)
         toast("${SnsShare.platform(id).label} 문구 복사됨 — 앱에서 길게 눌러 붙여넣기")
     }
@@ -1110,6 +1163,18 @@ class MainActivity : AppCompatActivity() {
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
+        if (loginMode && web.visibility == View.VISIBLE) {
+            if (web.canGoBack()) {
+                web.goBack()
+            } else {
+                loginMode = false
+                web.visibility = View.GONE
+                progress.visibility = View.GONE
+                form.visibility = View.VISIBLE
+                setStatus("로그인 취소됨")
+            }
+            return
+        }
         if (posting && web.visibility == View.VISIBLE) {
             if (web.canGoBack()) {
                 web.goBack()

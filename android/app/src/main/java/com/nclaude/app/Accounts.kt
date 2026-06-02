@@ -15,11 +15,16 @@ import android.webkit.CookieManager
  */
 object Accounts {
 
-    val IDS = listOf("dicajohn", "macdcross")
+    // 기본 계정이 맨 앞(=홈 진입 시 자동 선택). 요청에 따라 macdcross 를 기본으로.
+    val IDS = listOf("macdcross", "dicajohn")
 
     // 모바일 글쓰기(터치 입력/붙여넣기가 더 잘 됨). PC 에디터가 입력이 안 돼서 모바일로 전환.
     fun writeUrl(id: String) = "https://m.blog.naver.com/$id?Redirect=Write&"
     fun homeUrl(id: String) = "https://m.blog.naver.com/$id"
+
+    // 네이버 모바일 로그인 페이지(계정 선택 시 세션이 없으면 여기로 보냄 → 로그인 후 글쓰기로 이동)
+    fun loginUrl(id: String) =
+        "https://nid.naver.com/nidlogin.login?mode=form&url=https%3A%2F%2Fm.blog.naver.com%2F$id"
 
     private const val PREFS = "nclaude_accounts"
     private val HOSTS = listOf(
