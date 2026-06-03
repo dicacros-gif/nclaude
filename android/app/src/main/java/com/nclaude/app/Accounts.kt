@@ -17,8 +17,8 @@ object Accounts {
 
     val IDS = listOf("dicajohn", "macdcross")
 
-    // 모바일 글쓰기(터치 입력/붙여넣기가 더 잘 됨). PC 에디터가 입력이 안 돼서 모바일로 전환.
-    fun writeUrl(id: String) = "https://m.blog.naver.com/$id?Redirect=Write&"
+    // PC 스마트에디터 글쓰기 페이지.
+    fun writeUrl(id: String) = "https://blog.naver.com/$id?Redirect=Write&"
     fun homeUrl(id: String) = "https://m.blog.naver.com/$id"
 
     private const val PREFS = "nclaude_accounts"
@@ -63,6 +63,12 @@ object Accounts {
     fun load(ctx: Context, id: String): String? = prefs(ctx).getString("ck_$id", null)
 
     fun hasSession(ctx: Context, id: String): Boolean = !load(ctx, id).isNullOrBlank()
+
+    fun saveLastAccount(ctx: Context, id: String) {
+        prefs(ctx).edit().putString("last_id", id).apply()
+    }
+
+    fun getLastAccount(ctx: Context): String? = prefs(ctx).getString("last_id", null)
 
     /**
      * 대상 계정으로 전환: 전체 쿠키 삭제 후 저장된 쿠키를 복원.

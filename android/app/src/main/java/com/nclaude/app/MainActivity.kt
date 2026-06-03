@@ -364,9 +364,33 @@ class MainActivity : AppCompatActivity() {
     //  계정 전환
     // ---------------------------------------------------------------
     private fun setupAccounts() {
-        findViewById<MaterialButton>(R.id.btnAcc1).text = Accounts.IDS[0]
-        findViewById<MaterialButton>(R.id.btnAcc2).text = Accounts.IDS[1]
-        accountGroup.check(R.id.btnAcc1)
+        val lastId = Accounts.getLastAccount(this)
+        if (lastId != null && lastId in Accounts.IDS) {
+            currentAccount = lastId
+        }
+        val btnAcc1 = findViewById<MaterialButton>(R.id.btnAcc1)
+        val btnAcc2 = findViewById<MaterialButton>(R.id.btnAcc2)
+        btnAcc1.text = Accounts.IDS[0]
+        btnAcc2.text = Accounts.IDS[1]
+        
+        // 선택된 아이디 녹색 강조 (네이버 그린)
+        val greenCsl = android.content.res.ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+            intArrayOf(android.graphics.Color.parseColor("#03c75a"), android.graphics.Color.TRANSPARENT)
+        )
+        btnAcc1.strokeColor = greenCsl
+        btnAcc2.strokeColor = greenCsl
+        btnAcc1.backgroundTintList = greenCsl
+        btnAcc2.backgroundTintList = greenCsl
+        btnAcc1.setRippleColor(greenCsl)
+        btnAcc2.setRippleColor(greenCsl)
+        
+        if (currentAccount == Accounts.IDS[1]) {
+            accountGroup.check(R.id.btnAcc2)
+        } else {
+            accountGroup.check(R.id.btnAcc1)
+        }
+
         Accounts.applyTo(this, currentAccount) { had ->
             if (had) setStatus("${currentAccount} 세션 복원됨")
         }
@@ -381,6 +405,7 @@ class MainActivity : AppCompatActivity() {
         if (target == currentAccount) return
         Accounts.saveCurrentFor(this, currentAccount) // 나가는 계정 쿠키 저장
         currentAccount = target
+        Accounts.saveLastAccount(this, target) // 마지막 사용 계정 저장
         Accounts.applyTo(this, target) { had ->
             setStatus(if (had) "${target} 계정으로 전환됨" else "${target} : 포스팅 시 로그인이 필요합니다")
         }
@@ -397,6 +422,10 @@ class MainActivity : AppCompatActivity() {
             regenHook()
         }
         findViewById<Button>(R.id.btnCopyTitleHome).setOnClickListener { copyTitleToClipboard() }
+        findViewById<Button>(R.id.btnDeleteContent).setOnClickListener {
+            contentInput.setText("")
+            toast("본문이 삭제되었습니다")
+        }
         findViewById<Button>(R.id.btnCopyTitleApp).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnCopyBodyApp).setOnClickListener { copyBodyToClipboard() }
         findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { openNaverBlogApp() }
@@ -498,10 +527,10 @@ class MainActivity : AppCompatActivity() {
         web.settings.useWideViewPort = true
         web.settings.builtInZoomControls = true
         web.settings.displayZoomControls = false
-        // 모바일 네이버 글쓰기(터치 입력/붙여넣기가 더 잘 됨)를 받기 위해 모바일 UA 강제
+        // PC 버전 글쓰기(스마트에디터 ONE) 자동입력을 위해 데스크톱 UA 강제
         web.settings.userAgentString =
-            "Mozilla/5.0 (Linux; Android 14; SM-S918N) AppleWebKit/537.36 " +
-            "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
         web.addJavascriptInterface(AndroidPoster(), "AndroidPoster")
 
         // 웹뷰 터치 포커스 버그 보정: 입력창을 탭해도 포커스/키보드/커서가
@@ -524,15 +553,7 @@ class MainActivity : AppCompatActivity() {
                 if (Accounts.isLoggedIn()) Accounts.saveCurrentFor(this@MainActivity, currentAccount)
                 if (!posting) return
                 if (isPublishedUrl(url)) { onPublished(url); return }
-                // 모바일 글쓰기 페이지: PC 스마트에디터 자동입력 JS 가 안 통하므로
-                // 자동주입 대신 '복사 → 길게 눌러 붙여넣기' 안내로 전환(본문 서식은 클립보드에 준비됨).
-                if (url.contains("m.blog.naver.com") && !isPublishedUrl(url)) {
-                    progress.visibility = View.GONE
-                    setStatus("모바일 글쓰기 — 제목·본문칸을 길게 눌러 붙여넣기 (본문 서식 복사됨)")
-                    dbg("모바일 글쓰기 페이지: ${shortUrl(url)}")
-                    if (!guideShown) { showManualGuide(); guideShown = true }
-                    return
-                }
+
                 if (filled) return
                 // 로그인/리다이렉트를 거쳐 에디터 페이지가 뜰 때마다 (재)주입.
                 // 실제 에디터 탐색·로그인 감지는 JS(__NB_run)가 자체 폴링으로 처리.
@@ -572,6 +593,17 @@ class MainActivity : AppCompatActivity() {
         if (titleInput.text.isNullOrBlank()) {
             setTitleProgrammatically(TitleGen.generate(content))
         }
+
+        // 로그인 세션 여부 표시
+        val hasSession = Accounts.hasSession(this, currentAccount)
+        if (hasSession) {
+            setStatus("${currentAccount} 로그인 세션 확인됨")
+            toast("${currentAccount} 로그인 상태입니다")
+        } else {
+            setStatus("${currentAccount} 로그인 세션 없음 — 로그인이 필요할 수 있습니다")
+            toast("${currentAccount} 로그인이 필요할 수 있습니다")
+        }
+
         posting = true
         filled = false
         publishedUrl = null
@@ -581,8 +613,15 @@ class MainActivity : AppCompatActivity() {
         stageClipboardHtml(content)          // 자동 입력 실패 대비 '서식 포함 붙여넣기' 준비
         logLines.clear(); debugLog.text = ""
         debugLog.visibility = View.VISIBLE
-        form.visibility = View.GONE
+        form.visibility = View.VISIBLE
         web.visibility = View.VISIBLE
+
+        // 스플릿 뷰 설정: 폼과 웹뷰가 공간을 반씩 차지하게 함 (weight 적용)
+        (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
+        (web.layoutParams as LinearLayout.LayoutParams).weight = 1f
+        form.requestLayout()
+        web.requestLayout()
+
         showPostingChrome(true)
         progress.visibility = View.VISIBLE
         setStatus("${currentAccount} 글쓰기 페이지 여는 중…")
@@ -662,7 +701,6 @@ class MainActivity : AppCompatActivity() {
             progress.visibility = View.GONE
             setStatus("자동 입력이 안 됐어요 — 상단 '내용 복사' 후 본문칸을 길게 눌러 붙여넣기 (❓사용법)")
             dbg("본문 ${bodyLen}자 → 사진 단계 중단, 수동 입력 안내")
-            if (!guideShown) { showManualGuide(); guideShown = true }
             return
         }
 
@@ -696,7 +734,6 @@ class MainActivity : AppCompatActivity() {
             val copyBtn = if (isTitle) "제목 복사" else "내용 복사"
             setStatus("$label 실패 — '$copyBtn' 누른 뒤 에디터칸을 길게 눌러 붙여넣기 하세요 (❓사용법)")
             dbg("$label 실패(0자) → 복사/붙여넣기 안내")
-            if (!guideShown) { showManualGuide(); guideShown = true }
         }
     }
 
@@ -743,6 +780,11 @@ class MainActivity : AppCompatActivity() {
         progress.visibility = View.GONE
         web.visibility = View.GONE
         form.visibility = View.VISIBLE
+        
+        // 스플릿 뷰 해제: 폼이 다시 전체 공간을 차지하게 함
+        (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
+        form.requestLayout()
+
         showPostingChrome(false)
         postedUrl.text = url
         // '공유하기 복사'를 직접 누르는 대신, 같은 결과(제목+모바일URL)를 공유 원문칸에 채운다.
@@ -856,7 +898,6 @@ class MainActivity : AppCompatActivity() {
         val intent = packageManager.getLaunchIntentForPackage(pkg)
         if (intent != null) {
             startActivity(intent)
-            showBlogAppGuide()
         } else {
             toast("네이버 블로그 앱이 없습니다 — 스토어로 이동합니다")
             openStore(pkg)
@@ -879,29 +920,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 블로그 앱에서 붙여넣는 방법 안내(1회) */
-    private fun showBlogAppGuide() {
-        if (blogGuideShown) return
-        blogGuideShown = true
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("블로그 앱에 붙여넣기")
-            .setMessage(
-                "제목·본문이 클립보드에 준비됐어요(본문은 서식 포함).\n\n" +
-                    "① 블로그 앱에서 '글쓰기'를 누르세요\n" +
-                    "② 홈 화면 '① 제목 복사'로 제목을 복사해 두고,\n" +
-                    "    제목칸을 길게 눌러 '붙여넣기'\n" +
-                    "③ '② 본문 복사(서식)' 후 본문칸을 길게 눌러 '붙여넣기'\n" +
-                    "    → 소제목·색상·하이라이트가 그대로 들어갑니다\n\n" +
-                    "※ 일부 기기는 본문칸에서 '서식 있는 붙여넣기'를 골라야 색이 유지됩니다."
-            )
-            .setPositiveButton("확인", null)
-            .show()
-    }
-
-    /** 임의 SNS 앱 열기(미설치면 스토어). */
     private fun openApp(pkg: String, label: String) {
         val intent = packageManager.getLaunchIntentForPackage(pkg)
         if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
         } else {
             toast("$label 앱이 없습니다 — 스토어로 이동합니다")
@@ -959,10 +981,10 @@ class MainActivity : AppCompatActivity() {
 
             val label = TextView(this).apply {
                 text = "${p.label}  ·  ${platformHint(p.id)}"
-                setTextColor(0xFF1b1226.toInt())
+                setTextColor(0xFF000000.toInt())
                 textSize = 12f
                 setTypeface(typeface, Typeface.BOLD)
-                setBackgroundColor(0xFFb9a7ff.toInt())
+                setBackgroundColor(0xFF80cbc4.toInt()) // Teal instead of purple
                 setPadding(dp(8), dp(4), dp(8), dp(4))
             }
             card.addView(label)
@@ -1103,6 +1125,11 @@ class MainActivity : AppCompatActivity() {
                 web.visibility = View.GONE
                 progress.visibility = View.GONE
                 form.visibility = View.VISIBLE
+                
+                // 스플릿 뷰 해제: 폼이 다시 전체 공간을 차지하게 함
+                (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
+                form.requestLayout()
+
                 showPostingChrome(false)
                 setStatus("포스팅 취소됨")
             }

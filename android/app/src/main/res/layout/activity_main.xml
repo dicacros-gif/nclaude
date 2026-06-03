@@ -68,7 +68,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="6dp"
-        android:textColor="#7c6ff7"
+        android:textColor="#5b7cfa"
         android:textSize="12sp"
         android:visibility="gone" />
 
@@ -149,7 +149,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#1a1320"
+        android:background="#161616"
         android:paddingStart="6dp"
         android:paddingEnd="6dp"
         android:paddingTop="4dp"
@@ -290,15 +290,39 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="↻ 제목 자동생성"
+                    android:textColor="#5b7cfa"
                     android:textSize="11sp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="본문 — 전체 글을 붙여넣으세요"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="본문 — 전체 글을 붙여넣으세요"
+                        android:textColor="#9a9a9a"
+                        android:textSize="12sp" />
+
+                    <Button
+                        android:id="@+id/btnDeleteContent"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="🗑 전체삭제"
+                        android:textColor="#ff4d4d"
+                        android:textSize="11sp" />
+                </LinearLayout>
 
                 <EditText
                     android:id="@+id/contentInput"
@@ -337,6 +361,9 @@
                     android:lineSpacingMultiplier="1.3"
                     android:textColor="#f0f0f0"
                     android:textSize="14sp"
+                    android:lines="3"
+                    android:maxLines="3"
+                    android:ellipsize="end"
                     android:text="본문을 입력하면 여기에 미리보기가 표시됩니다" />
 
                 <Button
@@ -369,6 +396,9 @@
                     android:lineSpacingMultiplier="1.3"
                     android:textColor="#222222"
                     android:textSize="14sp"
+                    android:lines="3"
+                    android:maxLines="3"
+                    android:ellipsize="end"
                     android:text="본문을 입력하면 여기에 강조 미리보기가 표시됩니다" />
 
                 <Button
@@ -396,6 +426,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="🖼 사진 선택"
+                        android:textColor="#ff9800"
                         android:textSize="12sp" />
 
                     <TextView
@@ -414,6 +445,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="비우기"
+                        android:textColor="#ff4d4d"
                         android:textSize="11sp"
                         android:visibility="gone" />
                 </LinearLayout>
@@ -486,6 +518,7 @@
                         android:layout_weight="1"
                         android:minWidth="0dp"
                         android:text="① 제목 복사"
+                        android:textColor="#5b7cfa"
                         android:textSize="12sp" />
 
                     <Button
@@ -615,7 +648,7 @@
                         android:text="📋 후킹 복사"
                         android:textSize="12sp"
                         android:textStyle="bold"
-                        android:backgroundTint="#7c6ff7"
+                        android:backgroundTint="#5b7cfa"
                         android:textColor="#ffffff" />
                 </LinearLayout>
 
