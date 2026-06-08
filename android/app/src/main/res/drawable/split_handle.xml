@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 스플릿 뷰 크기조절 핸들: 어두운 바 + 가운데 밝은 그립 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/split_bar_bg" />
+        </shape>
+    </item>
+    <item android:gravity="center">
+        <shape android:shape="rectangle">
+            <size android:width="52dp" android:height="5dp" />
+            <solid android:color="@color/split_grip" />
+            <corners android:radius="3dp" />
+        </shape>
+    </item>
+</layer-list>

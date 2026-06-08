@@ -10,7 +10,6 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
-import android.text.InputType
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
@@ -67,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCollapseChrome: Button
     private lateinit var hookOutput: EditText
     private lateinit var contentLabel: TextView
+    private lateinit var splitHandle: View
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
@@ -77,7 +77,8 @@ class MainActivity : AppCompatActivity() {
     private var hookVariant = 0              // ‘다시 생성’ 누를 때마다 후킹 조합 회전
 
     private var blogGuideShown = false       // 블로그 앱 붙여넣기 안내 1회
-    private val snsCardInputs = HashMap<String, EditText>()  // SNS별 카드 입력칸
+    private val snsCardText = HashMap<String, String>()       // SNS별 생성된 전체 문구(복사용)
+    private val snsCardPreviews = HashMap<String, TextView>() // SNS별 1줄 미리보기
 
     // 포스팅 상태
     private var posting = false
@@ -133,14 +134,47 @@ class MainActivity : AppCompatActivity() {
         btnCollapseChrome = findViewById(R.id.btnCollapseChrome)
         hookOutput = findViewById(R.id.hookOutput)
         contentLabel = findViewById(R.id.contentLabel)
+        splitHandle = findViewById(R.id.splitHandle)
 
         setupWeb()
         setupForm()
         setupSns()
         setupAccounts()
         setupBars()
+        setupSplitHandle()
         showPostingChrome(false)
         restoreDraft()        // 마지막에 작성하던 제목·본문 자동 복원
+    }
+
+    /** 스플릿 뷰 크기조절: 핸들을 드래그하면 위(폼)/아래(웹뷰) 높이가 바뀐다. */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupSplitHandle() {
+        var startY = 0f
+        var startFormH = 0
+        splitHandle.setOnTouchListener { _, ev ->
+            val container = form.parent as? View ?: return@setOnTouchListener false
+            when (ev.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    startY = ev.rawY
+                    startFormH = form.height
+                    true
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val total = container.height - splitHandle.height
+                    val min = dp(72)
+                    if (total > 2 * min) {
+                        val newFormH = (startFormH + (ev.rawY - startY)).toInt().coerceIn(min, total - min)
+                        runCatching {
+                            (form.layoutParams as LinearLayout.LayoutParams).apply { height = newFormH; weight = 0f }
+                            (web.layoutParams as LinearLayout.LayoutParams).apply { height = total - newFormH; weight = 0f }
+                            form.requestLayout(); web.requestLayout()
+                        }
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     // ---------------------------------------------------------------
@@ -165,11 +199,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnGuide).setOnClickListener { showManualGuide() }
     }
 
-    /** 포스팅 중 상단 도구·로그를 접거나 펼친다(웹뷰 공간 확보). */
+    /** 포스팅/열람 스플릿 중 상단 도구·로그를 접거나 펼친다(웹뷰 공간 확보). */
     private fun applyChromeCollapsed() {
-        if (!posting) return
-        debugLog.visibility = if (chromeCollapsed) View.GONE else View.VISIBLE
-        manualBar.visibility = if (chromeCollapsed) View.GONE else View.VISIBLE
+        if (!posting && !splitBrowse) return    // 스플릿(포스팅·열람) 중에만 동작
+        val show = !chromeCollapsed
+        debugLog.visibility = if (show) View.VISIBLE else View.GONE
+        // 수동 입력 바는 '포스팅 중'에만 의미가 있음(열람 모드에서는 항상 숨김)
+        manualBar.visibility = if (show && posting) View.VISIBLE else View.GONE
         btnCollapseChrome.text =
             if (chromeCollapsed) "▸ 입력도구·로그 펼치기" else "▾ 입력도구·로그 접기"
     }
@@ -801,6 +837,7 @@ class MainActivity : AppCompatActivity() {
             toast("후킹 문구를 새로 생성했어요")
         }
         findViewById<Button>(R.id.btnCopyHook).setOnClickListener { copyHookOutput() }
+        findViewById<Button>(R.id.btnShareAll).setOnClickListener { guard { shareAll() } }
 
         // 공유 원문이 바뀌면 후킹 메시지 자동 변환(제목/URL 변경은 제목 watcher·onPublished 에서 갱신)
         snsInput.addTextChangedListener(object : TextWatcher {
@@ -938,18 +975,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** SNS 카드 입력칸의 현재 문구를 클립보드로 복사 */
+    /** SNS별 생성 문구(전체)를 클립보드로 복사 */
     private fun copyPlatform(id: String) {
-        val input = snsCardInputs[id] ?: return
-        val t = input.text?.toString()?.takeIf { it.isNotBlank() }
-        if (t == null) { toast("먼저 공유 원문을 입력/생성하세요"); return }
+        var t = snsCardText[id]?.takeIf { it.isNotBlank() }
+        if (t == null) { regenSnsCards(); t = snsCardText[id]?.takeIf { it.isNotBlank() } }
+        if (t == null) { toast("먼저 공유 원문(또는 제목/본문)을 입력하세요"); return }
         copyHook(t)
         toast("${SnsShare.platform(id).label} 문구 복사됨 — 앱에서 길게 눌러 붙여넣기")
     }
 
-    /** SNS별 카드 문구를 (원문/제목/URL 기준) 다시 생성해 각 입력칸에 채운다. */
+    /** SNS별 문구를 (원문/제목/URL 기준) 다시 생성 → 전체는 보관, 1줄만 미리보기 표시. */
     private fun regenSnsCards() {
-        if (snsCardInputs.isEmpty()) return
+        if (snsCardPreviews.isEmpty()) return
         val source = snsInput.text?.toString()?.takeIf { it.isNotBlank() }
             ?: titleInput.text?.toString()?.takeIf { it.isNotBlank() }
             ?: contentInput.text.toString()
@@ -957,7 +994,9 @@ class MainActivity : AppCompatActivity() {
         val urlInSource = Regex("https?://\\S+").find(source)?.value
         val url = urlInSource ?: publishedUrl?.let { mobileShareUrl(it) } ?: ""
         for (p in SnsShare.PLATFORMS) {
-            snsCardInputs[p.id]?.setText(SnsShare.buildFor(p.id, source, url, hookVariant))
+            val full = SnsShare.buildFor(p.id, source, url, hookVariant)
+            snsCardText[p.id] = full
+            snsCardPreviews[p.id]?.text = full.replace("\n", " ")   // 1줄 미리보기
         }
     }
 
@@ -991,14 +1030,16 @@ class MainActivity : AppCompatActivity() {
         else -> 0xFF3a4150.toInt()
     }
 
-    /** SNS별 카드(라벨 + 편집 가능한 문구칸 + 복사/앱열기)를 코드로 생성 */
+    /** SNS별 카드(로고+이름 헤더 · 1줄 미리보기 · 복사/앱열기)를 코드로 생성 */
     private fun buildSnsCards(container: LinearLayout) {
         container.removeAllViews()
-        snsCardInputs.clear()
+        snsCardText.clear()
+        snsCardPreviews.clear()
         for (p in SnsShare.PLATFORMS) {
+            val isDark = p.id == "x" || p.id == "threads"   // 검은색 SNS → 윤곽선 필요
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(0xFF161616.toInt())
+                setBackgroundColor(0xFF181c24.toInt())
                 setPadding(dp(10), dp(8), dp(10), dp(10))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1006,53 +1047,42 @@ class MainActivity : AppCompatActivity() {
                 ).apply { topMargin = dp(8) }
             }
 
+            // 헤더: 브랜드색 배경(+검은 SNS는 윤곽선) · 로고 · 이름
             val labelRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setBackgroundColor(snsColor(p.id))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(snsColor(p.id))
+                    cornerRadius = dp(6).toFloat()
+                    if (isDark) setStroke(dp(1), 0xFF8a93a3.toInt())
+                }
                 setPadding(dp(10), dp(6), dp(10), dp(6))
             }
-
-            // 브랜드 로고(흰색 모노크롬) — 잘못된 벡터라도 앱이 죽지 않게 runCatching
             val logo = ImageView(this).apply {
-                runCatching { setImageResource(snsIconRes(p.id)) }
+                runCatching { setImageResource(snsIconRes(p.id)) }   // 잘못된 벡터라도 안전
                 imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                layoutParams = LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(8) }
+                layoutParams = LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(8) }
             }
             labelRow.addView(logo)
-
-            val label = TextView(this).apply {
-                text = "${p.label}  ·  ${platformHint(p.id)}"
+            labelRow.addView(TextView(this).apply {
+                text = p.label                  // 설명(미리보기 안내) 제거 — 이름만
                 setTextColor(android.graphics.Color.WHITE)
                 textSize = 13f
                 setTypeface(typeface, Typeface.BOLD)
-            }
-            labelRow.addView(label)
+            })
             card.addView(labelRow)
 
-            val input = EditText(this).apply {
+            // 1줄 미리보기(편집 박스 제거 → 간단히). 복사는 전체 문구를 복사.
+            val preview = TextView(this).apply {
                 setTextColor(0xFFFFE27A.toInt())
-                setHintTextColor(0xFF5a5a5a.toInt())
-                hint = "공유 원문을 넣으면 ${p.label} 형식으로 자동 생성됩니다"
-                textSize = 13f
-                setBackgroundColor(0xFF1C1C1C.toInt())
-                setPadding(dp(10), dp(8), dp(10), dp(8))
-                gravity = android.view.Gravity.TOP
-                inputType = InputType.TYPE_CLASS_TEXT or
-                    InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                setHorizontallyScrolling(false)
-                minLines = 2
-                maxLines = 3
-                isVerticalScrollBarEnabled = true
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(6) }
+                textSize = 12f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(dp(2), dp(6), dp(2), dp(2))
             }
-            enableInnerScroll(input)
-            card.addView(input)
-            snsCardInputs[p.id] = input
+            card.addView(preview)
+            snsCardPreviews[p.id] = preview
 
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -1078,6 +1108,10 @@ class MainActivity : AppCompatActivity() {
                     iconTint = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
                 }
                 backgroundTintList = android.content.res.ColorStateList.valueOf(snsColor(p.id))
+                if (isDark) {                   // 검은 SNS 버튼 윤곽선(가독성)
+                    strokeColor = android.content.res.ColorStateList.valueOf(0xFF8a93a3.toInt())
+                    strokeWidth = dp(1)
+                }
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                 ).apply { marginStart = dp(8) }
@@ -1164,20 +1198,22 @@ class MainActivity : AppCompatActivity() {
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    /** 폼/웹뷰 세로 스플릿 비율 설정(컨테이너가 세로 LinearLayout 이므로 캐스팅 안전). */
+    /** 폼/웹뷰 세로 스플릿 비율 설정 + 크기조절 핸들 표시(컨테이너가 세로 LinearLayout 이라 안전). */
     private fun setContentSplit(formW: Float, webW: Float) {
         runCatching {
             (form.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = formW }
             (web.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = webW }
+            splitHandle.visibility = View.VISIBLE
             form.requestLayout(); web.requestLayout()
         }
     }
 
-    /** 스플릿 해제 → 폼이 전체 공간 차지(웹뷰 weight 0). */
+    /** 스플릿 해제 → 폼이 전체 공간 차지(웹뷰 weight 0) + 핸들 숨김. */
     private fun setContentFull() {
         runCatching {
             (form.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = 1f }
             (web.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = 0f }
+            splitHandle.visibility = View.GONE
             form.requestLayout(); web.requestLayout()
         }
     }

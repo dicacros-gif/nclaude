@@ -254,7 +254,7 @@
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
                     android:textSize="15sp"
-                    android:background="@color/bg_field"
+                    android:background="@drawable/bg_input"
                     android:padding="12dp"
                     android:layout_marginTop="6dp"
                     android:inputType="textMultiLine"
@@ -265,7 +265,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:backgroundTint="@color/accent_blue"
+                    android:backgroundTint="@color/brand_green"
                     android:text="↻ 제목 자동생성"
                     android:textSize="12sp" />
 
@@ -309,7 +309,7 @@
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
                     android:textSize="15sp"
-                    android:background="@color/bg_field"
+                    android:background="@drawable/bg_input"
                     android:padding="12dp"
                     android:layout_marginTop="6dp"
                     android:gravity="top"
@@ -333,7 +333,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:background="@color/bg_field"
+                    android:background="@drawable/bg_input"
                     android:padding="12dp"
                     android:lineSpacingMultiplier="1.35"
                     android:textColor="@color/text_primary"
@@ -500,7 +500,7 @@
                     android:textColor="@color/text_primary"
                     android:textColorHint="@color/text_hint"
                     android:textSize="14sp"
-                    android:background="@color/bg_field"
+                    android:background="@drawable/bg_input"
                     android:padding="12dp"
                     android:layout_marginTop="6dp"
                     android:gravity="top"
@@ -525,7 +525,7 @@
                     android:textColor="#ffe27a"
                     android:textColorHint="@color/text_hint"
                     android:textSize="14sp"
-                    android:background="#161412"
+                    android:background="@drawable/bg_input"
                     android:padding="12dp"
                     android:layout_marginTop="6dp"
                     android:gravity="top"
@@ -562,6 +562,16 @@
                         android:backgroundTint="@color/accent_blue" />
                 </LinearLayout>
 
+                <!-- 전체 SNS 순서대로 공유(앱이 차례로 열림) -->
+                <Button
+                    android:id="@+id/btnShareAll"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="@color/brand_green"
+                    android:text="📤 전체 SNS 순서대로 공유"
+                    android:textSize="14sp" />
+
                 <!-- SNS별 개별 복사: 앱마다 형식이 달라 카드를 따로 생성(코드에서 동적 구성) -->
                 <TextView
                     android:layout_width="match_parent"
@@ -583,6 +593,15 @@
                     android:layout_height="40dp" />
             </LinearLayout>
         </ScrollView>
+
+        <!-- 스플릿 크기조절 핸들: 드래그로 위(폼)/아래(웹뷰) 비율 조정 -->
+        <View
+            android:id="@+id/splitHandle"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:background="@drawable/split_handle"
+            android:contentDescription="화면 비율 조절 핸들"
+            android:visibility="gone" />
 
         <!-- 포스팅·블로그용 WebView (포스팅/스플릿 중에만 보임, 폼 아래쪽) -->
         <WebView
