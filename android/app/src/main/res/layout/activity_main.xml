@@ -319,14 +319,36 @@
                     android:overScrollMode="always"
                     android:inputType="textMultiLine|textCapSentences" />
 
-                <!-- 서식 미리보기 1: 간단(볼드) -->
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- 서식 미리보기 1: 간단(볼드) + 복사 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="✏️ 간단 서식 미리보기 (소제목·주요 단어 볼드)"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="✏️ 간단 서식 (볼드만)"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/btnCopyBold"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:backgroundTint="@color/accent_blue"
+                        android:text="📋 복사"
+                        android:textSize="12sp" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/previewBold"
@@ -343,14 +365,36 @@
                     android:ellipsize="end"
                     android:text="본문을 입력하면 여기에 미리보기가 표시됩니다" />
 
-                <!-- 서식 미리보기 2: 강조(네이버 흰 배경 기준) -->
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- 서식 미리보기 2: 강조(네이버 붙여넣기용) + 복사 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="🎨 강조 서식 미리보기 (색상·하이라이트·볼드)"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="14dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="🎨 강조 서식 (색상·하이라이트·볼드)"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+
+                    <Button
+                        android:id="@+id/btnCopyRich"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:backgroundTint="@color/brand_green"
+                        android:text="📋 복사"
+                        android:textSize="12sp" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/previewRich"

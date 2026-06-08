@@ -229,6 +229,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** 강조 서식(색·형광·볼드) 본문을 '네이버 붙여넣기용 HTML' 로 안드로이드 클립보드에 복사. */
+    private fun copyRichBody() {
+        val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
+        if (c == null) { toast("먼저 본문을 입력하세요"); return }
+        runCatching {
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtmlNaver(c)))
+        }.onSuccess {
+            toast("강조 서식 복사됨 — 네이버 본문칸을 길게 눌러 붙여넣기")
+            setStatus("강조 서식을 클립보드에 복사했어요 (네이버 붙여넣기용)")
+        }.onFailure { toast("복사 실패: ${it.message}") }
+    }
+
+    /** 간단 서식(볼드만) 본문을 HTML 로 안드로이드 클립보드에 복사. */
+    private fun copyBoldBody() {
+        val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
+        if (c == null) { toast("먼저 본문을 입력하세요"); return }
+        runCatching {
+            val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtmlBold(c)))
+        }.onSuccess {
+            toast("간단 서식(볼드) 복사됨 — 본문칸을 길게 눌러 붙여넣기")
+            setStatus("간단 서식(볼드)을 클립보드에 복사했어요")
+        }.onFailure { toast("복사 실패: ${it.message}") }
+    }
+
     /** 본문 입력이 바뀔 때마다 두 미리보기 박스를 다시 그린다(볼드 전용 / 강조 서식). */
     private fun refreshPreviews() {
         val c = contentInput.text?.toString().orEmpty()
@@ -441,6 +467,8 @@ class MainActivity : AppCompatActivity() {
             toast("본문이 삭제되었습니다")
         }
         findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { guard { openNaverBlogApp() } }
+        findViewById<Button>(R.id.btnCopyBold).setOnClickListener { copyBoldBody() }
+        findViewById<Button>(R.id.btnCopyRich).setOnClickListener { copyRichBody() }
         findViewById<Button>(R.id.btnPickPhotos).setOnClickListener {
             pickPhotos.launch(
                 PickVisualMediaRequest.Builder()
@@ -627,7 +655,7 @@ class MainActivity : AppCompatActivity() {
         photoSeq = false
         photoFeed = null
         guideShown = false
-        stageClipboardHtml(content)          // 자동 입력 실패 대비 '서식 포함 붙여넣기' 준비
+        stageClipboardHtml(content)          // ① 내용(강조 서식)을 '먼저' 클립보드에 복사
         logLines.clear(); debugLog.text = ""
         debugLog.visibility = View.VISIBLE
         form.visibility = View.VISIBLE
@@ -635,7 +663,7 @@ class MainActivity : AppCompatActivity() {
         setContentSplit(1f, 1.4f)   // 폼(위) + 에디터(아래, 약간 더 크게) 세로 스플릿
         showPostingChrome(true)
         progress.visibility = View.VISIBLE
-        setStatus("${currentAccount} 글쓰기 페이지 여는 중…")
+        setStatus("① 내용 클립보드 복사됨 · ${currentAccount} 글쓰기 페이지 여는 중…")
         dbg("포스팅 시작 · 계정 ${currentAccount}")
         web.loadUrl(Accounts.writeUrl(currentAccount))
     }
@@ -715,9 +743,17 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        setStatus("입력: 제목 ${yn(titleOk)} · 본문 ${yn(bodyOk)}(${bodyLen}자) · 서식 ${fmt}곳")
+        setStatus("① 제목 ${yn(titleOk)} · ② 내용 ${yn(bodyOk)}(${bodyLen}자) 입력 완료 · 서식 ${fmt}곳")
+        // 사진은 '제목→내용'이 실제로 들어간 뒤(③)에만 삽입한다.
+        // 내용보다 사진이 먼저 들어가지 않도록 내용 확정(bodyOk) + 충분한 대기 후 진행.
         if (selectedPhotos.isNotEmpty()) {
-            web.postDelayed({ insertPhotosSequentially(paraCount) }, 1000)
+            if (bodyOk && bodyLen >= 5) {
+                setStatus("② 내용 입력 완료 — 잠시 후 ③ 사진을 넣습니다…")
+                web.postDelayed({ if (posting && filled) insertPhotosSequentially(paraCount) }, 1800)
+            } else {
+                setStatus("내용이 덜 들어가 사진은 넣지 않았어요 — '내용 입력' 후 '🖼 사진 입력'으로 넣어주세요")
+                dbg("bodyOk=$bodyOk → 사진 단계 건너뜀")
+            }
         } else {
             afterPhotos()
         }
