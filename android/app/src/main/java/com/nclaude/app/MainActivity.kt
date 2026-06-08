@@ -164,11 +164,10 @@ class MainActivity : AppCompatActivity() {
                     val min = dp(72)
                     if (total > 2 * min) {
                         val newFormH = (startFormH + (ev.rawY - startY)).toInt().coerceIn(min, total - min)
-                        runCatching {
-                            (form.layoutParams as LinearLayout.LayoutParams).apply { height = newFormH; weight = 0f }
-                            (web.layoutParams as LinearLayout.LayoutParams).apply { height = total - newFormH; weight = 0f }
-                            form.requestLayout(); web.requestLayout()
-                        }
+                        // 안전 캐스팅(as?) — layoutParams 가 LinearLayout.LayoutParams 가 아니어도 크래시 없음
+                        (form.layoutParams as? LinearLayout.LayoutParams)?.apply { height = newFormH; weight = 0f }
+                        (web.layoutParams as? LinearLayout.LayoutParams)?.apply { height = total - newFormH; weight = 0f }
+                        form.requestLayout(); web.requestLayout()
                     }
                     true
                 }
@@ -1234,24 +1233,20 @@ class MainActivity : AppCompatActivity() {
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    /** 폼/웹뷰 세로 스플릿 비율 설정 + 크기조절 핸들 표시(컨테이너가 세로 LinearLayout 이라 안전). */
+    /** 폼/웹뷰 세로 스플릿 비율 설정 + 크기조절 핸들 표시. 안전 캐스팅(as?)으로 크래시 방지. */
     private fun setContentSplit(formW: Float, webW: Float) {
-        runCatching {
-            (form.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = formW }
-            (web.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = webW }
-            splitHandle.visibility = View.VISIBLE
-            form.requestLayout(); web.requestLayout()
-        }
+        (form.layoutParams as? LinearLayout.LayoutParams)?.apply { height = 0; weight = formW }
+        (web.layoutParams as? LinearLayout.LayoutParams)?.apply { height = 0; weight = webW }
+        splitHandle.visibility = View.VISIBLE
+        form.requestLayout(); web.requestLayout()
     }
 
-    /** 스플릿 해제 → 폼이 전체 공간 차지(웹뷰 weight 0) + 핸들 숨김. */
+    /** 스플릿 해제 → 폼이 전체 공간 차지(웹뷰 weight 0) + 핸들 숨김. 안전 캐스팅(as?). */
     private fun setContentFull() {
-        runCatching {
-            (form.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = 1f }
-            (web.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = 0f }
-            splitHandle.visibility = View.GONE
-            form.requestLayout(); web.requestLayout()
-        }
+        (form.layoutParams as? LinearLayout.LayoutParams)?.apply { height = 0; weight = 1f }
+        (web.layoutParams as? LinearLayout.LayoutParams)?.apply { height = 0; weight = 0f }
+        splitHandle.visibility = View.GONE
+        form.requestLayout(); web.requestLayout()
     }
 
     /** 버튼 동작을 감싸 예외가 나도 앱이 죽지 않고 메시지를 보여준다(크래시 방지). */
