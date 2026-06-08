@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 배경 -->
+    <color name="bg_app">#101216</color>          <!-- 약간 푸른빛이 도는 차분한 다크(가독성↑) -->
+    <color name="bg_bar">#1b1f27</color>          <!-- 상단/하단 바 -->
+    <color name="bg_field">#20242d</color>        <!-- 입력칸 배경(기존 #1c1c1c 보다 살짝 밝게) -->
+    <color name="bg_card">#181c24</color>
+
+    <!-- 텍스트 -->
+    <color name="text_primary">#f3f5f8</color>
+    <color name="text_secondary">#c2c8d2</color>   <!-- 기존 #9a9a9a → 밝게(가독성↑) -->
+    <color name="text_hint">#7f8794</color>
+
+    <!-- 버튼 시맨틱 컬러 -->
+    <color name="brand_green">#03c75a</color>      <!-- 네이버 그린 = 주요 액션 -->
+    <color name="accent_blue">#2f6df6</color>      <!-- 보조 액션(기존 보라 #5b7cfa 대체) -->
+    <color name="neutral_slate">#3a4150</color>    <!-- 중립/유틸 버튼 -->
+    <color name="danger_red">#e5484d</color>       <!-- 삭제 -->
+    <color name="warn_orange">#f59e0b</color>      <!-- 사진/안내 -->
+    <color name="on_color">#ffffff</color>
+
+    <!-- SNS 브랜드 -->
+    <color name="sns_facebook">#1877f2</color>
+    <color name="sns_linkedin">#0a66c2</color>
+    <color name="sns_instagram">#e4405f</color>
+    <color name="sns_threads">#000000</color>
+    <color name="sns_x">#000000</color>
+</resources>

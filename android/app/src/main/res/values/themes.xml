@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Nclaude" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:windowBackground">#0d0d0d</item>
-        <item name="android:statusBarColor">#0d0d0d</item>
-        <item name="colorPrimary">#03c75a</item>
-        <item name="colorOnPrimary">#ffffff</item>
+        <item name="android:windowBackground">@color/bg_app</item>
+        <item name="android:statusBarColor">@color/bg_bar</item>
+        <item name="colorPrimary">@color/brand_green</item>
+        <item name="colorOnPrimary">@color/on_color</item>
+        <!-- 모든 <Button> 을 둥근 '진짜 버튼' 으로(코드 생성 MaterialButton 도 동일 적용) -->
+        <item name="materialButtonStyle">@style/AppButton</item>
+    </style>
+
+    <!-- 공통 버튼: 둥근 모서리 + 충분한 터치 높이 + 흰 굵은 글씨(가독성) -->
+    <style name="AppButton" parent="Widget.Material3.Button">
+        <item name="cornerRadius">14dp</item>
+        <item name="android:textColor">@color/on_color</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">46dp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="elevation">2dp</item>
+        <item name="rippleColor">#33ffffff</item>
     </style>
 </resources>

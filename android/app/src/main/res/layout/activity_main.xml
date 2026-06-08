@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#0d0d0d">
+    android:background="@color/bg_app">
 
     <!-- 상단 바: 제목 + 계정 전환 -->
     <LinearLayout
@@ -12,16 +12,16 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="8dp"
-        android:background="#161616">
+        android:padding="10dp"
+        android:background="@color/bg_bar">
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="N Poster"
-            android:textColor="#03c75a"
-            android:textSize="18sp"
+            android:textColor="@color/brand_green"
+            android:textSize="19sp"
             android:textStyle="bold" />
 
         <com.google.android.material.button.MaterialButtonToggleGroup
@@ -37,10 +37,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="dicajohn"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:minWidth="0dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp" />
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAcc2"
@@ -48,10 +48,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="macdcross"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:minWidth="0dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp" />
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
     </LinearLayout>
 
@@ -67,9 +67,9 @@
         android:id="@+id/status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="6dp"
-        android:textColor="#03c75a"
-        android:textSize="13sp"
+        android:padding="8dp"
+        android:textColor="@color/brand_green"
+        android:textSize="14sp"
         android:textStyle="bold"
         android:visibility="gone" />
 
@@ -78,14 +78,14 @@
         android:id="@+id/debugLog"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
-        android:background="#0a0a0a"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:background="#0a0c10"
         android:fontFamily="monospace"
-        android:textColor="#5fae5f"
-        android:textSize="8sp"
+        android:textColor="#83d39a"
+        android:textSize="10sp"
         android:maxLines="3"
         android:scrollbars="vertical"
         android:visibility="gone" />
@@ -96,26 +96,26 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#121212"
+        android:background="@color/bg_bar"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
         android:visibility="gone">
 
         <Button android:id="@+id/btnCollapseChrome"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:minWidth="0dp"
             android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
-            android:backgroundTint="#444444"
-            android:text="▾ 입력도구·로그 접기" android:textSize="11sp" />
+            android:backgroundTint="@color/neutral_slate"
+            android:text="▾ 입력도구·로그 접기" android:textSize="12sp" />
 
         <Button android:id="@+id/btnGuide"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
             android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
-            android:backgroundTint="#ff9800"
-            android:text="❓ 사용법(복사·붙여넣기)" android:textSize="11sp" />
+            android:backgroundTint="@color/warn_orange"
+            android:text="❓ 사용법" android:textSize="12sp" />
     </LinearLayout>
 
     <!-- 홈 화면 빠른 이동: 폼이 길어서 맨 위/맨 아래로 점프 -->
@@ -124,7 +124,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#121212"
+        android:background="@color/bg_bar"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
         android:paddingTop="4dp"
@@ -133,24 +133,24 @@
         <Button android:id="@+id/btnScrollTop"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:minWidth="0dp"
-            android:backgroundTint="#333333"
-            android:text="▲ 맨 위" android:textSize="12sp" />
+            android:backgroundTint="@color/neutral_slate"
+            android:text="▲ 맨 위" android:textSize="13sp" />
 
         <Button android:id="@+id/btnScrollBottom"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
-            android:backgroundTint="#333333"
-            android:text="▼ 맨 아래" android:textSize="12sp" />
+            android:backgroundTint="@color/neutral_slate"
+            android:text="▼ 맨 아래" android:textSize="13sp" />
     </LinearLayout>
 
     <!-- 수동 입력 바: 자동 입력 실패 대비(포스팅 중에만 표시).
-         각 줄 = [에디터에 직접 입력] · [클립보드 복사] · [에디터에 붙여넣기 추가] -->
+         에디터에 직접 입력 / 에디터에 붙여넣기(추가) — 클립보드 복사 기능은 제거함 -->
     <LinearLayout
         android:id="@+id/manualBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#161616"
+        android:background="@color/bg_bar"
         android:paddingStart="6dp"
         android:paddingEnd="6dp"
         android:paddingTop="4dp"
@@ -166,22 +166,15 @@
             <Button android:id="@+id/btnFillTitle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:minWidth="0dp"
-                android:backgroundTint="#5b7cfa"
-                android:text="제목 입력" android:textSize="11sp"
-                android:paddingStart="2dp" android:paddingEnd="2dp" />
-
-            <Button android:id="@+id/btnTitleCopy"
-                android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
-                android:backgroundTint="#5b7cfa"
-                android:text="제목 복사" android:textSize="11sp"
+                android:backgroundTint="@color/accent_blue"
+                android:text="제목 입력" android:textSize="12sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
 
             <Button android:id="@+id/btnTitlePaste"
                 android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
-                android:backgroundTint="#5b7cfa"
-                android:text="제목 붙여넣기" android:textSize="11sp"
+                android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
+                android:backgroundTint="@color/accent_blue"
+                android:text="제목 붙여넣기" android:textSize="12sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
         </LinearLayout>
 
@@ -190,56 +183,52 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="6dp">
 
             <Button android:id="@+id/btnFillBody"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:minWidth="0dp"
-                android:backgroundTint="#03c75a"
-                android:text="내용 입력" android:textSize="11sp"
-                android:paddingStart="2dp" android:paddingEnd="2dp" />
-
-            <Button android:id="@+id/btnBodyCopy"
-                android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
-                android:backgroundTint="#03c75a"
-                android:text="내용 복사" android:textSize="11sp"
+                android:backgroundTint="@color/brand_green"
+                android:text="내용 입력" android:textSize="12sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
 
             <Button android:id="@+id/btnBodyPaste"
                 android:layout_width="0dp" android:layout_height="wrap_content"
-                android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
-                android:backgroundTint="#03c75a"
-                android:text="내용 붙여넣기" android:textSize="11sp"
+                android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
+                android:backgroundTint="@color/brand_green"
+                android:text="내용 붙여넣기" android:textSize="12sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
         </LinearLayout>
 
         <!-- 사진 줄 -->
         <Button android:id="@+id/btnFillPhoto"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="4dp" android:minWidth="0dp"
-            android:backgroundTint="#ff9800"
-            android:text="🖼 사진 입력(파일 선택창)" android:textSize="11sp"
+            android:layout_marginTop="6dp" android:minWidth="0dp"
+            android:backgroundTint="@color/warn_orange"
+            android:text="🖼 사진 입력(파일 선택창)" android:textSize="12sp"
             android:paddingStart="2dp" android:paddingEnd="2dp" />
     </LinearLayout>
 
-    <!-- 본문 영역: 입력 폼 / 포스팅용 WebView 가 번갈아 표시 -->
-    <FrameLayout
+    <!-- 본문 영역: 입력 폼(위) / 포스팅·블로그 WebView(아래) 를 세로 스플릿.
+         ※ 세로 LinearLayout 이어야 layout_weight 캐스팅이 안전(이전 FrameLayout 캐스팅 크래시 수정). -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:orientation="vertical">
 
         <ScrollView
             android:id="@+id/form"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="14dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -252,22 +241,9 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="제목 (자동 생성 · 수정 가능)"
-                        android:textColor="#9a9a9a"
-                        android:textSize="12sp" />
-
-                    <Button
-                        android:id="@+id/btnCopyTitleHome"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:insetTop="0dp"
-                        android:insetBottom="0dp"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:backgroundTint="#5b7cfa"
-                        android:text="📋 복사"
-                        android:textSize="11sp" />
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <EditText
@@ -275,12 +251,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="본문을 입력하면 자동 생성됩니다"
-                    android:textColor="#f0f0f0"
-                    android:textColorHint="#5a5a5a"
-                    android:textSize="14sp"
-                    android:background="#1c1c1c"
-                    android:padding="10dp"
-                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="15sp"
+                    android:background="@color/bg_field"
+                    android:padding="12dp"
+                    android:layout_marginTop="6dp"
                     android:inputType="textMultiLine"
                     android:maxLines="3" />
 
@@ -288,26 +264,27 @@
                     android:id="@+id/btnGenTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:backgroundTint="#5b7cfa"
+                    android:layout_marginTop="6dp"
+                    android:backgroundTint="@color/accent_blue"
                     android:text="↻ 제목 자동생성"
-                    android:textColor="#ffffff"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginTop="12dp">
+                    android:layout_marginTop="14dp">
 
                     <TextView
+                        android:id="@+id/contentLabel"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="본문 — 전체 글을 붙여넣으세요"
-                        android:textColor="#9a9a9a"
-                        android:textSize="12sp" />
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/btnDeleteContent"
@@ -317,12 +294,11 @@
                         android:minHeight="0dp"
                         android:insetTop="0dp"
                         android:insetBottom="0dp"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:backgroundTint="#ff4d4d"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="14dp"
+                        android:backgroundTint="@color/danger_red"
                         android:text="🗑 전체삭제"
-                        android:textColor="#ffffff"
-                        android:textSize="11sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
 
                 <EditText
@@ -330,88 +306,66 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="제목줄\n\n첫 문단...\n\n...\n\n마지막 요약줄"
-                    android:textColor="#f0f0f0"
-                    android:textColorHint="#5a5a5a"
-                    android:textSize="14sp"
-                    android:background="#1c1c1c"
-                    android:padding="10dp"
-                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="15sp"
+                    android:background="@color/bg_field"
+                    android:padding="12dp"
+                    android:layout_marginTop="6dp"
                     android:gravity="top"
                     android:minLines="5"
-                    android:maxLines="5"
+                    android:maxLines="6"
                     android:scrollbars="vertical"
                     android:overScrollMode="always"
                     android:inputType="textMultiLine|textCapSentences" />
 
-                <!-- 서식 미리보기 1: 간단(볼드) — 소제목·주요 단어만 굵게 -->
+                <!-- 서식 미리보기 1: 간단(볼드) -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:text="✏️ 간단 서식 미리보기 (소제목·주요 단어 볼드)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/previewBold"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:background="#1c1c1c"
-                    android:padding="10dp"
-                    android:lineSpacingMultiplier="1.3"
-                    android:textColor="#f0f0f0"
-                    android:textSize="14sp"
+                    android:layout_marginTop="6dp"
+                    android:background="@color/bg_field"
+                    android:padding="12dp"
+                    android:lineSpacingMultiplier="1.35"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
                     android:lines="3"
                     android:maxLines="3"
                     android:ellipsize="end"
                     android:text="본문을 입력하면 여기에 미리보기가 표시됩니다" />
 
-                <Button
-                    android:id="@+id/btnCopyBold"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="📋 간단 서식 복사 (볼드)"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#5b7cfa"
-                    android:textColor="#ffffff" />
-
-                <!-- 서식 미리보기 2: 강조 — 색상·하이라이트·볼드(네이버 붙여넣기용) -->
+                <!-- 서식 미리보기 2: 강조(네이버 흰 배경 기준) -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:text="🎨 강조 서식 미리보기 (색상·하이라이트·볼드)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/previewRich"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="6dp"
                     android:background="#ffffff"
-                    android:padding="10dp"
-                    android:lineSpacingMultiplier="1.3"
-                    android:textColor="#222222"
-                    android:textSize="14sp"
+                    android:padding="12dp"
+                    android:lineSpacingMultiplier="1.35"
+                    android:textColor="#1a1a1a"
+                    android:textSize="15sp"
                     android:lines="3"
                     android:maxLines="3"
                     android:ellipsize="end"
                     android:text="본문을 입력하면 여기에 강조 미리보기가 표시됩니다" />
-
-                <Button
-                    android:id="@+id/btnCopyRich"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="📋 강조 서식 복사 (네이버 붙여넣기용)"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#03c75a"
-                    android:textColor="#ffffff" />
 
                 <!-- 사진 선택 -->
                 <LinearLayout
@@ -419,16 +373,15 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginTop="12dp">
+                    android:layout_marginTop="16dp">
 
                     <Button
                         android:id="@+id/btnPickPhotos"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="#ff9800"
+                        android:backgroundTint="@color/warn_orange"
                         android:text="🖼 사진 선택"
-                        android:textColor="#ffffff"
-                        android:textSize="12sp" />
+                        android:textSize="13sp" />
 
                     <TextView
                         android:id="@+id/photoCount"
@@ -437,19 +390,26 @@
                         android:layout_weight="1"
                         android:layout_marginStart="10dp"
                         android:text="선택된 사진 없음"
-                        android:textColor="#9a9a9a"
-                        android:textSize="12sp" />
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
 
                     <Button
                         android:id="@+id/btnClearPhotos"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:backgroundTint="#ff4d4d"
+                        android:backgroundTint="@color/danger_red"
                         android:text="비우기"
-                        android:textColor="#ffffff"
-                        android:textSize="11sp"
+                        android:textSize="12sp"
                         android:visibility="gone" />
                 </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="사진은 본문 문단 사이에 랜덤 위치로 자동 삽입됩니다"
+                    android:textColor="@color/text_hint"
+                    android:textSize="11sp" />
 
                 <HorizontalScrollView
                     android:layout_width="match_parent"
@@ -469,48 +429,50 @@
                     android:id="@+id/autoPublishSwitch"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="16dp"
                     android:text="발행까지 자동 (끄면 검토 후 직접 발행)"
-                    android:textColor="#cfcfcf"
-                    android:textSize="12sp"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     android:checked="false" />
 
-                <!-- 포스팅 버튼 -->
+                <!-- 포스팅 버튼 (주요 액션) -->
                 <Button
                     android:id="@+id/btnPost"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
+                    android:layout_marginTop="18dp"
                     android:text="📤 블로그 포스팅"
-                    android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#03c75a"
-                    android:textColor="#ffffff" />
+                    android:textSize="16sp"
+                    android:backgroundTint="@color/brand_green" />
 
+                <!-- 네이버 블로그 스플릿 뷰로 열기 -->
                 <Button
                     android:id="@+id/btnOpenBlogApp"
+                    style="@style/AppButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="📱 네이버 블로그 홈 (스플릿 뷰)"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:backgroundTint="#03c75a"
-                    android:textColor="#ffffff" />
+                    android:layout_marginTop="10dp"
+                    android:text="네이버 블로그 열기 (스플릿 뷰)"
+                    android:textSize="15sp"
+                    android:backgroundTint="@color/brand_green"
+                    app:icon="@drawable/ic_naver"
+                    app:iconGravity="textStart"
+                    app:iconTint="@color/on_color" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="18dp"
-                    android:background="#2a2a2a" />
+                    android:layout_marginTop="20dp"
+                    android:background="#2a2f3a" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="16dp"
                     android:text="SNS 공유 (포스팅 완료 후)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/postedUrl"
@@ -518,44 +480,42 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="아직 게시된 글이 없습니다"
-                    android:textColor="#5a5a5a"
-                    android:textSize="11sp"
+                    android:textColor="@color/text_hint"
+                    android:textSize="12sp"
                     android:autoLink="web" />
 
-                <!-- 공유 원문: 포스팅 후 자동 생성(제목+모바일URL) · 네이버 '공유하기 복사' 붙여넣기/수정 가능 -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="12dp"
                     android:text="공유 원문 (자동 생성 · 붙여넣기/수정 가능)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
 
                 <EditText
                     android:id="@+id/snsInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="포스팅 완료 후 자동 생성됩니다.\n네이버 '공유하기 복사' 글을 붙여넣어도 됩니다."
-                    android:textColor="#f0f0f0"
-                    android:textColorHint="#5a5a5a"
-                    android:textSize="13sp"
-                    android:background="#1c1c1c"
-                    android:padding="10dp"
-                    android:layout_marginTop="4dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="14sp"
+                    android:background="@color/bg_field"
+                    android:padding="12dp"
+                    android:layout_marginTop="6dp"
                     android:gravity="top"
                     android:minLines="2"
                     android:maxLines="3"
                     android:scrollbars="vertical"
                     android:inputType="textMultiLine" />
 
-                <!-- 후킹 메시지: 원문/제목/URL 바뀌면 자동 변환(블록 줄바꿈 + CTA + URL) -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="14dp"
                     android:text="후킹 메시지 (자동 변환 · 복사용)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
 
                 <EditText
                     android:id="@+id/hookOutput"
@@ -563,14 +523,14 @@
                     android:layout_height="wrap_content"
                     android:hint="공유 원문을 넣으면 후킹 문구로 자동 변환됩니다."
                     android:textColor="#ffe27a"
-                    android:textColorHint="#5a5a5a"
-                    android:textSize="13sp"
-                    android:background="#15140b"
-                    android:padding="10dp"
-                    android:layout_marginTop="4dp"
+                    android:textColorHint="@color/text_hint"
+                    android:textSize="14sp"
+                    android:background="#161412"
+                    android:padding="12dp"
+                    android:layout_marginTop="6dp"
                     android:gravity="top"
                     android:minLines="2"
-                    android:maxLines="3"
+                    android:maxLines="4"
                     android:scrollbars="vertical"
                     android:inputType="textMultiLine" />
 
@@ -578,7 +538,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="6dp">
+                    android:layout_marginTop="8dp">
 
                     <Button
                         android:id="@+id/btnGenHook"
@@ -586,33 +546,30 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:minWidth="0dp"
-                        android:backgroundTint="#444444"
+                        android:backgroundTint="@color/neutral_slate"
                         android:text="↻ 다시 생성"
-                        android:textColor="#ffffff"
-                        android:textSize="12sp" />
+                        android:textSize="13sp" />
 
                     <Button
                         android:id="@+id/btnCopyHook"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:layout_marginStart="6dp"
+                        android:layout_marginStart="8dp"
                         android:minWidth="0dp"
                         android:text="📋 후킹 복사"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:backgroundTint="#5b7cfa"
-                        android:textColor="#ffffff" />
+                        android:textSize="13sp"
+                        android:backgroundTint="@color/accent_blue" />
                 </LinearLayout>
 
                 <!-- SNS별 개별 복사: 앱마다 형식이 달라 카드를 따로 생성(코드에서 동적 구성) -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="16dp"
                     android:text="SNS별 개별 복사 (앱마다 형식 다름 · 복사 후 앱 열기)"
-                    android:textColor="#9a9a9a"
-                    android:textSize="12sp" />
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
 
                 <LinearLayout
                     android:id="@+id/snsCards"
@@ -627,11 +584,12 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- 포스팅용 WebView (포스팅 중에만 보임) -->
+        <!-- 포스팅·블로그용 WebView (포스팅/스플릿 중에만 보임, 폼 아래쪽) -->
         <WebView
             android:id="@+id/web"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="0"
             android:visibility="gone" />
-    </FrameLayout>
+    </LinearLayout>
 </LinearLayout>

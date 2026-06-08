@@ -41,6 +41,7 @@ import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import org.json.JSONObject
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
 
@@ -65,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var postBar: LinearLayout
     private lateinit var btnCollapseChrome: Button
     private lateinit var hookOutput: EditText
+    private lateinit var contentLabel: TextView
 
     private var currentAccount = Accounts.IDS[0]
     private val selectedPhotos = mutableListOf<Uri>()
@@ -81,6 +83,7 @@ class MainActivity : AppCompatActivity() {
     private var posting = false
     private var filled = false
     private var publishedUrl: String? = null
+    private var splitBrowse = false          // 블로그 열람용 스플릿(포스팅 아님)
 
     // 사진 순차 삽입(일정 간격)
     private var photoSeq = false
@@ -129,6 +132,7 @@ class MainActivity : AppCompatActivity() {
         postBar = findViewById(R.id.postBar)
         btnCollapseChrome = findViewById(R.id.btnCollapseChrome)
         hookOutput = findViewById(R.id.hookOutput)
+        contentLabel = findViewById(R.id.contentLabel)
 
         setupWeb()
         setupForm()
@@ -136,6 +140,7 @@ class MainActivity : AppCompatActivity() {
         setupAccounts()
         setupBars()
         showPostingChrome(false)
+        restoreDraft()        // 마지막에 작성하던 제목·본문 자동 복원
     }
 
     // ---------------------------------------------------------------
@@ -149,10 +154,8 @@ class MainActivity : AppCompatActivity() {
             form.post { form.fullScroll(View.FOCUS_DOWN) }
         }
         findViewById<Button>(R.id.btnFillTitle).setOnClickListener { manualFill(title = true) }
-        findViewById<Button>(R.id.btnTitleCopy).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnTitlePaste).setOnClickListener { manualPaste(title = true) }
         findViewById<Button>(R.id.btnFillBody).setOnClickListener { manualFill(title = false) }
-        findViewById<Button>(R.id.btnBodyCopy).setOnClickListener { copyBodyToClipboard() }
         findViewById<Button>(R.id.btnBodyPaste).setOnClickListener { manualPaste(title = false) }
         findViewById<Button>(R.id.btnFillPhoto).setOnClickListener { manualPhoto() }
         btnCollapseChrome.setOnClickListener {
@@ -173,53 +176,21 @@ class MainActivity : AppCompatActivity() {
 
     /** 자동/수동 입력이 안 될 때 ‘어디를 눌러 복사·붙여넣기’ 하는지 단계별 안내 */
     private fun showManualGuide() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("수동 입력 가이드 (복사 → 붙여넣기)")
-            .setMessage(
-                "자동 입력이 안 되면 복사 → 붙여넣기가 가장 확실해요.\n\n" +
-                    "① 상단 '제목 복사'를 누르세요\n" +
-                    "    → 제목이 클립보드에 복사됩니다\n" +
-                    "② 네이버 '제목' 칸을 손가락으로 꾹(1~2초) 길게 누르세요\n" +
-                    "③ 떠오르는 메뉴에서 '붙여넣기'를 누르세요\n\n" +
-                    "④ 상단 '내용 복사'를 누르고\n" +
-                    "⑤ 네이버 '본문' 칸을 길게 눌러 '붙여넣기'\n\n" +
-                    "⑥ 사진은 '사진 입력' 버튼으로 올리세요\n\n" +
-                    "※ 앱의 '제목 붙여넣기/내용 붙여넣기' 버튼은 에디터에 바로 넣어줘요(되면 더 편함)."
-            )
-            .setPositiveButton("확인", null)
-            .show()
-    }
-
-    /** 제목을 일반 텍스트로 클립보드에 복사 */
-    private fun copyTitleToClipboard() {
-        val t = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
-        if (t == null) { toast("먼저 제목을 입력/생성하세요"); return }
-        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cb.setPrimaryClip(ClipData.newPlainText("title", t))
-        toast("제목 복사됨")
-        setStatus("제목을 클립보드에 복사했어요")
-    }
-
-    /** 본문을 서식 포함 HTML 로 클립보드에 복사 */
-    private fun copyBodyToClipboard() {
-        val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
-        if (c == null) { toast("먼저 본문을 입력하세요"); return }
-        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val html = Formatter.bodyHtmlNaver(c)
-        cb.setPrimaryClip(ClipData.newHtmlText("body", c, html))
-        toast("강조 서식 복사됨")
-        setStatus("강조 서식을 복사했어요")
-    }
-
-    /** 본문을 '볼드만' 적용한 HTML 로 클립보드에 복사 */
-    private fun copyBoldBody() {
-        val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
-        if (c == null) { toast("먼저 본문을 입력하세요"); return }
-        val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val html = Formatter.bodyHtmlBold(c)
-        cb.setPrimaryClip(ClipData.newHtmlText("body", c, html))
-        toast("볼드 서식 복사됨")
-        setStatus("볼드 서식을 복사했어요")
+        if (isFinishing || isDestroyed) return
+        runCatching {
+            androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("수동 입력 가이드")
+                .setMessage(
+                    "자동 입력이 약하면 상단 입력 버튼으로 에디터에 바로 넣을 수 있어요.\n\n" +
+                        "① 상단 '제목 입력' → 제목이 에디터 제목칸에 들어갑니다\n" +
+                        "② 상단 '내용 입력' → 본문이 서식과 함께 에디터에 들어갑니다\n" +
+                        "③ '제목 붙여넣기 / 내용 붙여넣기' → 기존 내용 뒤에 이어붙입니다\n\n" +
+                        "④ 사진은 '사진 입력' 버튼으로 올리세요\n\n" +
+                        "※ 입력 버튼은 에디터 DOM 에 직접 적용하므로 클립보드 복사가 필요 없습니다."
+                )
+                .setPositiveButton("확인", null)
+                .show()
+        }
     }
 
     /** 본문 입력이 바뀔 때마다 두 미리보기 박스를 다시 그린다(볼드 전용 / 강조 서식). */
@@ -429,14 +400,11 @@ class MainActivity : AppCompatActivity() {
             titleEdited = false
             regenHook()
         }
-        findViewById<Button>(R.id.btnCopyTitleHome).setOnClickListener { copyTitleToClipboard() }
         findViewById<Button>(R.id.btnDeleteContent).setOnClickListener {
             contentInput.setText("")
             toast("본문이 삭제되었습니다")
         }
-        findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { openNaverBlogApp() }
-        findViewById<Button>(R.id.btnCopyBold).setOnClickListener { copyBoldBody() }
-        findViewById<Button>(R.id.btnCopyRich).setOnClickListener { copyBodyToClipboard() }
+        findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { guard { openNaverBlogApp() } }
         findViewById<Button>(R.id.btnPickPhotos).setOnClickListener {
             pickPhotos.launch(
                 PickVisualMediaRequest.Builder()
@@ -447,7 +415,7 @@ class MainActivity : AppCompatActivity() {
         btnClearPhotos.setOnClickListener {
             selectedPhotos.clear(); renderPhotos()
         }
-        findViewById<Button>(R.id.btnPost).setOnClickListener { startPosting() }
+        findViewById<Button>(R.id.btnPost).setOnClickListener { guard { startPosting() } }
 
         // 본문이 바뀌면 (사용자가 제목을 직접 수정하지 않았을 때) 제목 자동 갱신
         contentInput.addTextChangedListener(object : TextWatcher {
@@ -456,6 +424,7 @@ class MainActivity : AppCompatActivity() {
                     setTitleProgrammatically(TitleGen.generate(contentInput.text.toString()))
                 }
                 refreshPreviews()
+                updateContentCount()
             }
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -473,6 +442,17 @@ class MainActivity : AppCompatActivity() {
 
         enableInnerScroll(contentInput)
         refreshPreviews()
+        updateContentCount()
+    }
+
+    /** 본문 글자수/줄수를 라벨에 표시(가독성·길이 파악) */
+    private fun updateContentCount() {
+        val c = contentInput.text?.toString().orEmpty()
+        val chars = c.length
+        val lines = c.split('\n').count { it.isNotBlank() }
+        contentLabel.text =
+            if (chars == 0) "본문 — 전체 글을 붙여넣으세요"
+            else "본문 — ${chars}자 · ${lines}줄"
     }
 
     /** 제목을 코드로 채울 때(자동생성 등) — TextWatcher 가 '사용자 수정'으로 오인하지 않게 */
@@ -557,6 +537,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (url == null) return
                 if (Accounts.isLoggedIn()) Accounts.saveCurrentFor(this@MainActivity, currentAccount)
+                if (splitBrowse) { progress.visibility = View.GONE; return }  // 열람 스플릿: 로딩만
                 if (!posting) return
                 if (isPublishedUrl(url)) { onPublished(url); return }
 
@@ -615,13 +596,7 @@ class MainActivity : AppCompatActivity() {
         debugLog.visibility = View.VISIBLE
         form.visibility = View.VISIBLE
         web.visibility = View.VISIBLE
-
-        // 스플릿 뷰 설정: 폼과 웹뷰가 공간을 반씩 차지하게 함 (weight 적용)
-        (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
-        (web.layoutParams as LinearLayout.LayoutParams).weight = 1f
-        form.requestLayout()
-        web.requestLayout()
-
+        setContentSplit(1f, 1.4f)   // 폼(위) + 에디터(아래, 약간 더 크게) 세로 스플릿
         showPostingChrome(true)
         progress.visibility = View.VISIBLE
         setStatus("${currentAccount} 글쓰기 페이지 여는 중…")
@@ -699,7 +674,7 @@ class MainActivity : AppCompatActivity() {
         // → '사진 입력 중' 같은 잘못된 진행 메시지를 막고, 수동 복사/붙여넣기를 안내.
         if (bodyLen < 5) {
             progress.visibility = View.GONE
-            setStatus("자동 입력이 안 됐어요 — 상단 '내용 복사' 후 본문칸을 길게 눌러 붙여넣기 (❓사용법)")
+            setStatus("자동 입력이 안 됐어요 — 상단 '내용 입력' 버튼을 눌러보세요 (❓사용법)")
             dbg("본문 ${bodyLen}자 → 사진 단계 중단, 수동 입력 안내")
             return
         }
@@ -731,20 +706,22 @@ class MainActivity : AppCompatActivity() {
             dbg("$label 성공 ${len}자")
         } else {
             val isTitle = kind.startsWith("title")
-            val copyBtn = if (isTitle) "제목 복사" else "내용 복사"
-            setStatus("$label 실패 — '$copyBtn' 누른 뒤 에디터칸을 길게 눌러 붙여넣기 하세요 (❓사용법)")
-            dbg("$label 실패(0자) → 복사/붙여넣기 안내")
+            val btn = if (isTitle) "제목 입력" else "내용 입력"
+            setStatus("$label 실패 — 에디터를 연 뒤 상단 '$btn' 버튼을 눌러보세요 (❓사용법)")
+            dbg("$label 실패(0자) → 입력 버튼 안내")
         }
     }
 
-    /** 사진을 본문 문단에 일정 간격으로 1장씩 순차 삽입 */
+    /** 사진을 본문 문단 사이의 '랜덤' 위치로 1장씩 순차 삽입(글마다 배치가 달라짐) */
     private fun insertPhotosSequentially(paraCount: Int) {
         val n = selectedPhotos.size
         if (n == 0) { afterPhotos(); return }
         val base = if (paraCount < 1) 1 else paraCount
-        val indices = (0 until n).map { ((it + 1) * base) / (n + 1) }
+        // 사진 순서를 랜덤 셔플 + 본문 문단 사이 위치도 랜덤(중복 없이) 선택
+        val photos = selectedPhotos.shuffled(Random)
+        val positions = randomPhotoPositions(n, base)
         photoSeq = true
-        dbg("사진 ${n}장 · 위치 ${indices}")
+        dbg("사진 ${n}장 · 랜덤 위치 ${positions}")
         fun step(i: Int) {
             if (!posting) { photoSeq = false; return }
             if (i >= n) {
@@ -753,12 +730,24 @@ class MainActivity : AppCompatActivity() {
                 afterPhotos()
                 return
             }
-            photoFeed = selectedPhotos[i]
-            setStatus("사진 ${i + 1}/${n} 삽입 중…")
-            web.evaluateJavascript("window.__NB_imageAt(${indices[i]})", null)
+            photoFeed = photos[i]
+            setStatus("사진 ${i + 1}/${n} 삽입 중… (랜덤 위치)")
+            web.evaluateJavascript("window.__NB_imageAt(${positions[i]})", null)
             web.postDelayed({ step(i + 1) }, 4000)
         }
         step(0)
+    }
+
+    /** 본문 문단 수 안에서 사진 n장을 넣을 '서로 다른' 랜덤 위치를 오름차순으로 만든다. */
+    private fun randomPhotoPositions(n: Int, paraCount: Int): List<Int> {
+        if (n <= 0) return emptyList()
+        val hi = paraCount.coerceAtLeast(1)           // 1..hi 사이(맨 위 제목/첫 줄은 피함)
+        val pool = (1..hi).toMutableList()
+        return if (pool.size >= n) {
+            pool.shuffled(Random).take(n).sorted()    // 서로 다른 랜덤 위치
+        } else {
+            (0 until n).map { Random.nextInt(0, hi + 1) }.sorted()  // 문단이 적으면 분산(중복 허용)
+        }
     }
 
     /** 입력·사진 후 단계: 자동발행이면 발행 클릭, 아니면 사용자 발행 대기 */
@@ -780,11 +769,7 @@ class MainActivity : AppCompatActivity() {
         progress.visibility = View.GONE
         web.visibility = View.GONE
         form.visibility = View.VISIBLE
-        
-        // 스플릿 뷰 해제: 폼이 다시 전체 공간을 차지하게 함
-        (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
-        form.requestLayout()
-
+        setContentFull()        // 스플릿 해제 → 폼이 전체 공간 차지
         showPostingChrome(false)
         postedUrl.text = url
         // '공유하기 복사'를 직접 누르는 대신, 같은 결과(제목+모바일URL)를 공유 원문칸에 채운다.
@@ -891,22 +876,30 @@ class MainActivity : AppCompatActivity() {
     //  앱 열기 + 복사 → 붙여넣기 (웹뷰 자동입력 우회)
     // ---------------------------------------------------------------
 
-    /** 네이버 블로그 앱 대신 웹뷰 스플릿 뷰로 열기 */
+    /** 네이버 블로그를 화면 아래쪽 스플릿 뷰(웹뷰)로 연다 — 폼(위) + 블로그(아래). */
     private fun openNaverBlogApp() {
-        posting = true // 스플릿 뷰 활성화를 위해 posting 상태로 간주
+        splitBrowse = true        // 열람 전용(포스팅 자동입력/발행 감지 비활성)
+        posting = false
         form.visibility = View.VISIBLE
         web.visibility = View.VISIBLE
-        
-        // 스플릿 뷰 설정
-        (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
-        (web.layoutParams as LinearLayout.LayoutParams).weight = 1f
-        form.requestLayout()
-        web.requestLayout()
-        
+        setContentSplit(1f, 1f)   // 위(폼)/아래(블로그) 반반 스플릿
         showPostingChrome(true)
         progress.visibility = View.VISIBLE
-        setStatus("${currentAccount} 블로그 홈으로 이동 중…")
+        setStatus("${currentAccount} 블로그를 아래 스플릿 화면에 여는 중… (뒤로가기로 닫기)")
+        dbg("블로그 스플릿 열람 ${currentAccount}")
         web.loadUrl(Accounts.homeUrl(currentAccount))
+    }
+
+    /** 스플릿(웹뷰)을 닫고 폼 전체 화면으로 복귀 */
+    private fun closeSplit() {
+        posting = false
+        splitBrowse = false
+        filled = false
+        web.visibility = View.GONE
+        progress.visibility = View.GONE
+        form.visibility = View.VISIBLE
+        setContentFull()
+        showPostingChrome(false)
     }
 
     /** 플레이스토어(없으면 웹)로 해당 패키지 페이지 열기 */
@@ -927,12 +920,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun openApp(pkg: String, label: String) {
         val intent = packageManager.getLaunchIntentForPackage(pkg)
-        if (intent != null) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
-        } else {
+        if (intent == null) {
             toast("$label 앱이 없습니다 — 스토어로 이동합니다")
             openStore(pkg)
+            return
+        }
+        // 스플릿(인접) 실행 시도 → 실패하면 일반 실행으로 폴백(크래시 방지)
+        intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            runCatching {
+                val plain = packageManager.getLaunchIntentForPackage(pkg)
+                    ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (plain != null) startActivity(plain) else openStore(pkg)
+            }
         }
     }
 
@@ -969,6 +971,26 @@ class MainActivity : AppCompatActivity() {
         else -> ""
     }
 
+    /** SNS 브랜드 로고 리소스 */
+    private fun snsIconRes(id: String): Int = when (id) {
+        "facebook" -> R.drawable.ic_sns_facebook
+        "linkedin" -> R.drawable.ic_sns_linkedin
+        "instagram" -> R.drawable.ic_sns_instagram
+        "threads" -> R.drawable.ic_sns_threads
+        "x" -> R.drawable.ic_sns_x
+        else -> R.drawable.ic_sns_x
+    }
+
+    /** SNS 브랜드 색(헤더/열기 버튼 배경) */
+    private fun snsColor(id: String): Int = when (id) {
+        "facebook" -> 0xFF1877F2.toInt()
+        "linkedin" -> 0xFF0A66C2.toInt()
+        "instagram" -> 0xFFE4405F.toInt()
+        "threads" -> 0xFF111111.toInt()
+        "x" -> 0xFF111111.toInt()
+        else -> 0xFF3a4150.toInt()
+    }
+
     /** SNS별 카드(라벨 + 편집 가능한 문구칸 + 복사/앱열기)를 코드로 생성 */
     private fun buildSnsCards(container: LinearLayout) {
         container.removeAllViews()
@@ -987,30 +1009,23 @@ class MainActivity : AppCompatActivity() {
             val labelRow = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = android.view.Gravity.CENTER_VERTICAL
-                setBackgroundColor(when(p.id) {
-                    "facebook" -> 0xFF1877F2.toInt()
-                    "linkedin" -> 0xFF0A66C2.toInt()
-                    "instagram" -> 0xFFE4405F.toInt()
-                    "threads" -> 0xFF000000.toInt()
-                    "x" -> 0xFF000000.toInt()
-                    else -> 0xFF555555.toInt()
-                })
-                setPadding(dp(8), dp(4), dp(8), dp(4))
+                setBackgroundColor(snsColor(p.id))
+                setPadding(dp(10), dp(6), dp(10), dp(6))
             }
 
-            val iconText = when(p.id) {
-                "facebook" -> "FB"
-                "linkedin" -> "IN"
-                "instagram" -> "IG"
-                "threads" -> "TH"
-                "x" -> "X "
-                else -> ""
+            // 브랜드 로고(흰색 모노크롬) — 잘못된 벡터라도 앱이 죽지 않게 runCatching
+            val logo = ImageView(this).apply {
+                runCatching { setImageResource(snsIconRes(p.id)) }
+                imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                layoutParams = LinearLayout.LayoutParams(dp(22), dp(22)).apply { marginEnd = dp(8) }
             }
+            labelRow.addView(logo)
 
             val label = TextView(this).apply {
-                text = "$iconText ${p.label}  ·  ${platformHint(p.id)}"
+                text = "${p.label}  ·  ${platformHint(p.id)}"
                 setTextColor(android.graphics.Color.WHITE)
-                textSize = 12f
+                textSize = 13f
                 setTypeface(typeface, Typeface.BOLD)
             }
             labelRow.addView(label)
@@ -1046,27 +1061,26 @@ class MainActivity : AppCompatActivity() {
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply { topMargin = dp(6) }
             }
-            val btnCopy = Button(this).apply {
+            val btnCopy = MaterialButton(this).apply {
                 text = "📋 복사"
-                textSize = 12f
-                backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF444444.toInt())
+                textSize = 13f
+                backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF3a4150.toInt())
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                 )
                 setOnClickListener { copyPlatform(p.id) }
             }
-            val btnOpen = Button(this).apply {
-                text = "📱 ${p.label} 열기"
-                textSize = 12f
-                backgroundTintList = android.content.res.ColorStateList.valueOf(when(p.id) {
-                    "facebook" -> 0xFF1877F2.toInt()
-                    "linkedin" -> 0xFF0A66C2.toInt()
-                    "instagram" -> 0xFFE4405F.toInt()
-                    else -> 0xFF03c75a.toInt()
-                })
+            val btnOpen = MaterialButton(this).apply {
+                text = "${p.label} 열기"
+                textSize = 13f
+                runCatching {
+                    setIconResource(snsIconRes(p.id))
+                    iconTint = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                }
+                backgroundTintList = android.content.res.ColorStateList.valueOf(snsColor(p.id))
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                ).apply { marginStart = dp(6) }
+                ).apply { marginStart = dp(8) }
                 setOnClickListener { copyPlatform(p.id); openApp(p.pkg, p.label) }
             }
             row.addView(btnCopy)
@@ -1150,23 +1164,72 @@ class MainActivity : AppCompatActivity() {
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
+    /** 폼/웹뷰 세로 스플릿 비율 설정(컨테이너가 세로 LinearLayout 이므로 캐스팅 안전). */
+    private fun setContentSplit(formW: Float, webW: Float) {
+        runCatching {
+            (form.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = formW }
+            (web.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = webW }
+            form.requestLayout(); web.requestLayout()
+        }
+    }
+
+    /** 스플릿 해제 → 폼이 전체 공간 차지(웹뷰 weight 0). */
+    private fun setContentFull() {
+        runCatching {
+            (form.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = 1f }
+            (web.layoutParams as LinearLayout.LayoutParams).apply { height = 0; weight = 0f }
+            form.requestLayout(); web.requestLayout()
+        }
+    }
+
+    /** 버튼 동작을 감싸 예외가 나도 앱이 죽지 않고 메시지를 보여준다(크래시 방지). */
+    private fun guard(action: () -> Unit) {
+        try {
+            action()
+        } catch (e: Throwable) {
+            runCatching { dbg("예외: $e") }
+            toast("작업 중 오류: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
+    // ---------------------------------------------------------------
+    //  임시 저장(자동 복원): 마지막 제목/본문을 보관해 재실행 시 복원
+    // ---------------------------------------------------------------
+    private fun draftPrefs() = getSharedPreferences("nclaude_draft", Context.MODE_PRIVATE)
+
+    private fun saveDraft() {
+        runCatching {
+            draftPrefs().edit()
+                .putString("title", titleInput.text?.toString().orEmpty())
+                .putString("body", contentInput.text?.toString().orEmpty())
+                .putBoolean("titleEdited", titleEdited)
+                .apply()
+        }
+    }
+
+    private fun restoreDraft() {
+        runCatching {
+            val p = draftPrefs()
+            val body = p.getString("body", "").orEmpty()
+            val title = p.getString("title", "").orEmpty()
+            if (body.isNotBlank()) contentInput.setText(body)   // watcher → 미리보기/제목 자동
+            if (title.isNotBlank()) {
+                setTitleProgrammatically(title)
+                titleEdited = p.getBoolean("titleEdited", false)
+            }
+            updateContentCount()
+        }
+    }
+
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        if (posting && web.visibility == View.VISIBLE) {
+        if ((posting || splitBrowse) && web.visibility == View.VISIBLE) {
             if (web.canGoBack()) {
                 web.goBack()
             } else {
-                posting = false
-                web.visibility = View.GONE
-                progress.visibility = View.GONE
-                form.visibility = View.VISIBLE
-                
-                // 스플릿 뷰 해제: 폼이 다시 전체 공간을 차지하게 함
-                (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
-                form.requestLayout()
-
-                showPostingChrome(false)
-                setStatus("포스팅 취소됨")
+                val wasPosting = posting
+                closeSplit()
+                setStatus(if (wasPosting) "포스팅 취소됨" else "블로그 화면을 닫았어요")
             }
             return
         }
@@ -1175,6 +1238,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        saveDraft()              // 작성 중인 제목/본문 임시 저장(재실행 시 복원)
         if (Accounts.isLoggedIn()) Accounts.saveCurrentFor(this, currentAccount)
         CookieManager.getInstance().flush()
     }
