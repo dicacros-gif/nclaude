@@ -19,9 +19,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="N블로그 포스터"
-            android:textColor="#e0e0e0"
-            android:textSize="14sp"
+            android:text="N Poster"
+            android:textColor="#03c75a"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <com.google.android.material.button.MaterialButtonToggleGroup
@@ -68,8 +68,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="6dp"
-        android:textColor="#5b7cfa"
-        android:textSize="12sp"
+        android:textColor="#03c75a"
+        android:textSize="13sp"
+        android:textStyle="bold"
         android:visibility="gone" />
 
     <!-- 디버그 로그(포스팅 중에도 보임): 세로로 작게(접기 가능) -->
@@ -103,17 +104,17 @@
         android:visibility="gone">
 
         <Button android:id="@+id/btnCollapseChrome"
-            style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:minWidth="0dp"
             android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
+            android:backgroundTint="#444444"
             android:text="▾ 입력도구·로그 접기" android:textSize="11sp" />
 
         <Button android:id="@+id/btnGuide"
-            style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
             android:minHeight="0dp" android:insetTop="0dp" android:insetBottom="0dp"
+            android:backgroundTint="#ff9800"
             android:text="❓ 사용법(복사·붙여넣기)" android:textSize="11sp" />
     </LinearLayout>
 
@@ -130,15 +131,15 @@
         android:paddingBottom="4dp">
 
         <Button android:id="@+id/btnScrollTop"
-            style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:minWidth="0dp"
+            android:backgroundTint="#333333"
             android:text="▲ 맨 위" android:textSize="12sp" />
 
         <Button android:id="@+id/btnScrollBottom"
-            style="?attr/materialButtonOutlinedStyle"
             android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_weight="1" android:layout_marginStart="6dp" android:minWidth="0dp"
+            android:backgroundTint="#333333"
             android:text="▼ 맨 아래" android:textSize="12sp" />
     </LinearLayout>
 
@@ -163,23 +164,23 @@
             android:orientation="horizontal">
 
             <Button android:id="@+id/btnFillTitle"
-                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:minWidth="0dp"
+                android:backgroundTint="#5b7cfa"
                 android:text="제목 입력" android:textSize="11sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
 
             <Button android:id="@+id/btnTitleCopy"
-                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:backgroundTint="#5b7cfa"
                 android:text="제목 복사" android:textSize="11sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
 
             <Button android:id="@+id/btnTitlePaste"
-                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:backgroundTint="#5b7cfa"
                 android:text="제목 붙여넣기" android:textSize="11sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
         </LinearLayout>
@@ -192,32 +193,32 @@
             android:layout_marginTop="4dp">
 
             <Button android:id="@+id/btnFillBody"
-                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:minWidth="0dp"
+                android:backgroundTint="#03c75a"
                 android:text="내용 입력" android:textSize="11sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
 
             <Button android:id="@+id/btnBodyCopy"
-                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:backgroundTint="#03c75a"
                 android:text="내용 복사" android:textSize="11sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
 
             <Button android:id="@+id/btnBodyPaste"
-                style="?attr/materialButtonOutlinedStyle"
                 android:layout_width="0dp" android:layout_height="wrap_content"
                 android:layout_weight="1" android:layout_marginStart="4dp" android:minWidth="0dp"
+                android:backgroundTint="#03c75a"
                 android:text="내용 붙여넣기" android:textSize="11sp"
                 android:paddingStart="2dp" android:paddingEnd="2dp" />
         </LinearLayout>
 
         <!-- 사진 줄 -->
         <Button android:id="@+id/btnFillPhoto"
-            style="?attr/materialButtonOutlinedStyle"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="4dp" android:minWidth="0dp"
+            android:backgroundTint="#ff9800"
             android:text="🖼 사진 입력(파일 선택창)" android:textSize="11sp"
             android:paddingStart="2dp" android:paddingEnd="2dp" />
     </LinearLayout>
@@ -256,7 +257,6 @@
 
                     <Button
                         android:id="@+id/btnCopyTitleHome"
-                        style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minWidth="0dp"
@@ -265,6 +265,7 @@
                         android:insetBottom="0dp"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
+                        android:backgroundTint="#5b7cfa"
                         android:text="📋 복사"
                         android:textSize="11sp" />
                 </LinearLayout>
@@ -285,12 +286,12 @@
 
                 <Button
                     android:id="@+id/btnGenTitle"
-                    style="?attr/materialButtonOutlinedStyle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
+                    android:backgroundTint="#5b7cfa"
                     android:text="↻ 제목 자동생성"
-                    android:textColor="#5b7cfa"
+                    android:textColor="#ffffff"
                     android:textSize="11sp" />
 
                 <LinearLayout
@@ -310,7 +311,6 @@
 
                     <Button
                         android:id="@+id/btnDeleteContent"
-                        style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minWidth="0dp"
@@ -319,8 +319,9 @@
                         android:insetBottom="0dp"
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
+                        android:backgroundTint="#ff4d4d"
                         android:text="🗑 전체삭제"
-                        android:textColor="#ff4d4d"
+                        android:textColor="#ffffff"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -422,11 +423,11 @@
 
                     <Button
                         android:id="@+id/btnPickPhotos"
-                        style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:backgroundTint="#ff9800"
                         android:text="🖼 사진 선택"
-                        android:textColor="#ff9800"
+                        android:textColor="#ffffff"
                         android:textSize="12sp" />
 
                     <TextView
@@ -441,11 +442,11 @@
 
                     <Button
                         android:id="@+id/btnClearPhotos"
-                        style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:backgroundTint="#ff4d4d"
                         android:text="비우기"
-                        android:textColor="#ff4d4d"
+                        android:textColor="#ffffff"
                         android:textSize="11sp"
                         android:visibility="gone" />
                 </LinearLayout>
@@ -486,61 +487,12 @@
                     android:backgroundTint="#03c75a"
                     android:textColor="#ffffff" />
 
-                <!-- 블로그 앱으로 작성 (복사 → 붙여넣기) : 웹뷰 입력이 안 될 때 우회 -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="📱 블로그 앱으로 작성 (복사 → 붙여넣기)"
-                    android:textColor="#03c75a"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
-                    android:text="① 제목 복사 → 앱 제목칸에 붙여넣기  ②본문 복사(서식) → 본문칸에 붙여넣기"
-                    android:textColor="#7a7a7a"
-                    android:textSize="11sp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="6dp">
-
-                    <Button
-                        android:id="@+id/btnCopyTitleApp"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:minWidth="0dp"
-                        android:text="① 제목 복사"
-                        android:textColor="#5b7cfa"
-                        android:textSize="12sp" />
-
-                    <Button
-                        android:id="@+id/btnCopyBodyApp"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="6dp"
-                        android:minWidth="0dp"
-                        android:text="② 본문 복사(서식)"
-                        android:textSize="12sp"
-                        android:textStyle="bold"
-                        android:backgroundTint="#03c75a"
-                        android:textColor="#ffffff" />
-                </LinearLayout>
-
                 <Button
                     android:id="@+id/btnOpenBlogApp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="📱 네이버 블로그 앱 열기"
+                    android:layout_marginTop="16dp"
+                    android:text="📱 네이버 블로그 홈 (스플릿 뷰)"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="#03c75a"
@@ -591,8 +543,8 @@
                     android:padding="10dp"
                     android:layout_marginTop="4dp"
                     android:gravity="top"
-                    android:minLines="3"
-                    android:maxLines="6"
+                    android:minLines="2"
+                    android:maxLines="3"
                     android:scrollbars="vertical"
                     android:inputType="textMultiLine" />
 
@@ -617,8 +569,8 @@
                     android:padding="10dp"
                     android:layout_marginTop="4dp"
                     android:gravity="top"
-                    android:minLines="6"
-                    android:maxLines="14"
+                    android:minLines="2"
+                    android:maxLines="3"
                     android:scrollbars="vertical"
                     android:inputType="textMultiLine" />
 
@@ -630,12 +582,13 @@
 
                     <Button
                         android:id="@+id/btnGenHook"
-                        style="?attr/materialButtonOutlinedStyle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:minWidth="0dp"
+                        android:backgroundTint="#444444"
                         android:text="↻ 다시 생성"
+                        android:textColor="#ffffff"
                         android:textSize="12sp" />
 
                     <Button

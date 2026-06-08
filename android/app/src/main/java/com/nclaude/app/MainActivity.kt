@@ -190,34 +190,36 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /** 제목을 일반 텍스트로 클립보드에 복사 — 네이버 제목칸을 길게 눌러 붙여넣기 */
+    /** 제목을 일반 텍스트로 클립보드에 복사 */
     private fun copyTitleToClipboard() {
         val t = titleInput.text?.toString()?.takeIf { it.isNotBlank() }
         if (t == null) { toast("먼저 제목을 입력/생성하세요"); return }
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cb.setPrimaryClip(ClipData.newPlainText("title", t))
-        toast("제목 복사됨 — 네이버 제목칸을 길게 눌러 붙여넣기")
-        setStatus("제목을 클립보드에 복사했어요 — 제목칸 길게 눌러 붙여넣기")
+        toast("제목 복사됨")
+        setStatus("제목을 클립보드에 복사했어요")
     }
 
-    /** 본문을 서식 포함 HTML 로 클립보드에 복사 — 네이버 본문칸을 길게 눌러 붙여넣기 */
+    /** 본문을 서식 포함 HTML 로 클립보드에 복사 */
     private fun copyBodyToClipboard() {
         val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
         if (c == null) { toast("먼저 본문을 입력하세요"); return }
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtmlNaver(c)))
-        toast("본문 복사됨 — 네이버 본문칸을 길게 눌러 붙여넣기")
-        setStatus("본문을 클립보드에 복사했어요 — 본문칸 길게 눌러 붙여넣기")
+        val html = Formatter.bodyHtmlNaver(c)
+        cb.setPrimaryClip(ClipData.newHtmlText("body", c, html))
+        toast("강조 서식 복사됨")
+        setStatus("강조 서식을 복사했어요")
     }
 
-    /** 본문을 '볼드만' 적용한 HTML 로 클립보드에 복사 — 색/형광 없이 굵게만(간단 서식) */
+    /** 본문을 '볼드만' 적용한 HTML 로 클립보드에 복사 */
     private fun copyBoldBody() {
         val c = contentInput.text?.toString()?.takeIf { it.isNotBlank() }
         if (c == null) { toast("먼저 본문을 입력하세요"); return }
         val cb = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cb.setPrimaryClip(ClipData.newHtmlText("body", c, Formatter.bodyHtmlBold(c)))
-        toast("간단 서식(볼드) 복사됨 — 길게 눌러 붙여넣기")
-        setStatus("간단 서식(볼드)을 복사했어요 — 본문칸 길게 눌러 붙여넣기")
+        val html = Formatter.bodyHtmlBold(c)
+        cb.setPrimaryClip(ClipData.newHtmlText("body", c, html))
+        toast("볼드 서식 복사됨")
+        setStatus("볼드 서식을 복사했어요")
     }
 
     /** 본문 입력이 바뀔 때마다 두 미리보기 박스를 다시 그린다(볼드 전용 / 강조 서식). */
@@ -376,14 +378,12 @@ class MainActivity : AppCompatActivity() {
         // 선택된 아이디 녹색 강조 (네이버 그린)
         val greenCsl = android.content.res.ColorStateList(
             arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(android.graphics.Color.parseColor("#03c75a"), android.graphics.Color.TRANSPARENT)
+            intArrayOf(android.graphics.Color.parseColor("#03c75a"), android.graphics.Color.parseColor("#333333"))
         )
-        btnAcc1.strokeColor = greenCsl
-        btnAcc2.strokeColor = greenCsl
         btnAcc1.backgroundTintList = greenCsl
         btnAcc2.backgroundTintList = greenCsl
-        btnAcc1.setRippleColor(greenCsl)
-        btnAcc2.setRippleColor(greenCsl)
+        btnAcc1.setTextColor(android.graphics.Color.WHITE)
+        btnAcc2.setTextColor(android.graphics.Color.WHITE)
         
         if (currentAccount == Accounts.IDS[1]) {
             accountGroup.check(R.id.btnAcc2)
@@ -392,7 +392,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         Accounts.applyTo(this, currentAccount) { had ->
-            if (had) setStatus("${currentAccount} 세션 복원됨")
+            updateSessionStatus(currentAccount, had)
         }
         accountGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
@@ -407,7 +407,15 @@ class MainActivity : AppCompatActivity() {
         currentAccount = target
         Accounts.saveLastAccount(this, target) // 마지막 사용 계정 저장
         Accounts.applyTo(this, target) { had ->
-            setStatus(if (had) "${target} 계정으로 전환됨" else "${target} : 포스팅 시 로그인이 필요합니다")
+            updateSessionStatus(target, had)
+        }
+    }
+
+    private fun updateSessionStatus(id: String, hasSession: Boolean) {
+        if (hasSession) {
+            setStatus("● ${id} 로그인 세션 활성")
+        } else {
+            setStatus("○ ${id} 세션 없음 (포스팅 시 로그인 필요)")
         }
     }
 
@@ -426,8 +434,6 @@ class MainActivity : AppCompatActivity() {
             contentInput.setText("")
             toast("본문이 삭제되었습니다")
         }
-        findViewById<Button>(R.id.btnCopyTitleApp).setOnClickListener { copyTitleToClipboard() }
-        findViewById<Button>(R.id.btnCopyBodyApp).setOnClickListener { copyBodyToClipboard() }
         findViewById<Button>(R.id.btnOpenBlogApp).setOnClickListener { openNaverBlogApp() }
         findViewById<Button>(R.id.btnCopyBold).setOnClickListener { copyBoldBody() }
         findViewById<Button>(R.id.btnCopyRich).setOnClickListener { copyBodyToClipboard() }
@@ -596,14 +602,8 @@ class MainActivity : AppCompatActivity() {
 
         // 로그인 세션 여부 표시
         val hasSession = Accounts.hasSession(this, currentAccount)
-        if (hasSession) {
-            setStatus("${currentAccount} 로그인 세션 확인됨")
-            toast("${currentAccount} 로그인 상태입니다")
-        } else {
-            setStatus("${currentAccount} 로그인 세션 없음 — 로그인이 필요할 수 있습니다")
-            toast("${currentAccount} 로그인이 필요할 수 있습니다")
-        }
-
+        updateSessionStatus(currentAccount, hasSession)
+        
         posting = true
         filled = false
         publishedUrl = null
@@ -891,17 +891,22 @@ class MainActivity : AppCompatActivity() {
     //  앱 열기 + 복사 → 붙여넣기 (웹뷰 자동입력 우회)
     // ---------------------------------------------------------------
 
-    /** 네이버 블로그 앱 열기(+본문 서식 복사). 미설치면 스토어로 유도. */
+    /** 네이버 블로그 앱 대신 웹뷰 스플릿 뷰로 열기 */
     private fun openNaverBlogApp() {
-        copyBodyToClipboard()                 // 본문(서식 HTML)을 먼저 클립보드에 올려둠
-        val pkg = "com.nhn.android.blog"
-        val intent = packageManager.getLaunchIntentForPackage(pkg)
-        if (intent != null) {
-            startActivity(intent)
-        } else {
-            toast("네이버 블로그 앱이 없습니다 — 스토어로 이동합니다")
-            openStore(pkg)
-        }
+        posting = true // 스플릿 뷰 활성화를 위해 posting 상태로 간주
+        form.visibility = View.VISIBLE
+        web.visibility = View.VISIBLE
+        
+        // 스플릿 뷰 설정
+        (form.layoutParams as LinearLayout.LayoutParams).weight = 1f
+        (web.layoutParams as LinearLayout.LayoutParams).weight = 1f
+        form.requestLayout()
+        web.requestLayout()
+        
+        showPostingChrome(true)
+        progress.visibility = View.VISIBLE
+        setStatus("${currentAccount} 블로그 홈으로 이동 중…")
+        web.loadUrl(Accounts.homeUrl(currentAccount))
     }
 
     /** 플레이스토어(없으면 웹)로 해당 패키지 페이지 열기 */
@@ -971,7 +976,7 @@ class MainActivity : AppCompatActivity() {
         for (p in SnsShare.PLATFORMS) {
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(0xFF15140b.toInt())
+                setBackgroundColor(0xFF161616.toInt())
                 setPadding(dp(10), dp(8), dp(10), dp(10))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -979,15 +984,37 @@ class MainActivity : AppCompatActivity() {
                 ).apply { topMargin = dp(8) }
             }
 
-            val label = TextView(this).apply {
-                text = "${p.label}  ·  ${platformHint(p.id)}"
-                setTextColor(0xFF000000.toInt())
-                textSize = 12f
-                setTypeface(typeface, Typeface.BOLD)
-                setBackgroundColor(0xFF80cbc4.toInt()) // Teal instead of purple
+            val labelRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setBackgroundColor(when(p.id) {
+                    "facebook" -> 0xFF1877F2.toInt()
+                    "linkedin" -> 0xFF0A66C2.toInt()
+                    "instagram" -> 0xFFE4405F.toInt()
+                    "threads" -> 0xFF000000.toInt()
+                    "x" -> 0xFF000000.toInt()
+                    else -> 0xFF555555.toInt()
+                })
                 setPadding(dp(8), dp(4), dp(8), dp(4))
             }
-            card.addView(label)
+
+            val iconText = when(p.id) {
+                "facebook" -> "FB"
+                "linkedin" -> "IN"
+                "instagram" -> "IG"
+                "threads" -> "TH"
+                "x" -> "X "
+                else -> ""
+            }
+
+            val label = TextView(this).apply {
+                text = "$iconText ${p.label}  ·  ${platformHint(p.id)}"
+                setTextColor(android.graphics.Color.WHITE)
+                textSize = 12f
+                setTypeface(typeface, Typeface.BOLD)
+            }
+            labelRow.addView(label)
+            card.addView(labelRow)
 
             val input = EditText(this).apply {
                 setTextColor(0xFFFFE27A.toInt())
@@ -1000,7 +1027,8 @@ class MainActivity : AppCompatActivity() {
                 inputType = InputType.TYPE_CLASS_TEXT or
                     InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 setHorizontallyScrolling(false)
-                maxLines = 12
+                minLines = 2
+                maxLines = 3
                 isVerticalScrollBarEnabled = true
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1021,6 +1049,7 @@ class MainActivity : AppCompatActivity() {
             val btnCopy = Button(this).apply {
                 text = "📋 복사"
                 textSize = 12f
+                backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF444444.toInt())
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                 )
@@ -1029,6 +1058,12 @@ class MainActivity : AppCompatActivity() {
             val btnOpen = Button(this).apply {
                 text = "📱 ${p.label} 열기"
                 textSize = 12f
+                backgroundTintList = android.content.res.ColorStateList.valueOf(when(p.id) {
+                    "facebook" -> 0xFF1877F2.toInt()
+                    "linkedin" -> 0xFF0A66C2.toInt()
+                    "instagram" -> 0xFFE4405F.toInt()
+                    else -> 0xFF03c75a.toInt()
+                })
                 layoutParams = LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                 ).apply { marginStart = dp(6) }

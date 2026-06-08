@@ -178,17 +178,19 @@ object Formatter {
     fun bodyHtmlBold(body: String): String {
         val sb = StringBuilder()
         var firstDone = false
-        for (raw in body.split('\n')) {
+        val lines = body.split('\n')
+        for ((i, raw) in lines.withIndex()) {
             val ln = raw.trim()
-            if (ln.isEmpty()) { sb.append("<p><br></p>"); continue }
+            if (ln.isEmpty() && i == lines.size - 1) continue // 마지막 빈 줄 무시
+            if (ln.isEmpty()) { sb.append("<div><br></div>"); continue }
             val isFirst = !firstDone
             firstDone = true
             val seg = classify(ln, isFirst)
             val inner = inlineBold(esc(ln))
             if (seg != null && seg.bold) {
-                sb.append("<p style=\"line-height:1.7\"><b>").append(inner).append("</b></p>")
+                sb.append("<div style=\"margin:0;line-height:1.6\"><b>").append(inner).append("</b></div>")
             } else {
-                sb.append("<p style=\"line-height:1.7\">").append(inner).append("</p>")
+                sb.append("<div style=\"margin:0;line-height:1.6\">").append(inner).append("</div>")
             }
         }
         return sb.toString()
@@ -200,27 +202,21 @@ object Formatter {
         return out
     }
 
-    // ---------------------------------------------------------------
-    //  네이버 에디터 '붙여넣기' 전용 최소 서식 HTML
-    //  SmartEditor(모바일/PC)가 안전하게 받아주는 태그만 사용 → 굵게/글자색/형광이
-    //  '실제 서식'으로 들어가고, 태그가 글자로 노출되지 않게 한다.
-    //  허용 범위만 사용: <p> 줄 구분, <b> 굵게, <span style="color/background-color">.
-    //  (line-height·padding·font-size 등은 일부 에디터가 통째로 무시하거나
-    //   거꾸로 텍스트로 노출시키는 경우가 있어 의도적으로 제외)
-    // ---------------------------------------------------------------
     fun bodyHtmlNaver(body: String): String {
         val sb = StringBuilder()
         var firstDone = false
-        for (raw in body.split('\n')) {
+        val lines = body.split('\n')
+        for ((i, raw) in lines.withIndex()) {
             val ln = raw.trim()
-            if (ln.isEmpty()) { sb.append("<p><br></p>"); continue }
+            if (ln.isEmpty() && i == lines.size - 1) continue // 마지막 빈 줄 무시
+            if (ln.isEmpty()) { sb.append("<div><br></div>"); continue }
             val isFirst = !firstDone
             firstDone = true
             val seg = classify(ln, isFirst)
             if (seg != null && (seg.bold || seg.color != null || seg.hilite != null)) {
-                sb.append("<p>").append(naverSpan(esc(ln), seg)).append("</p>")
+                sb.append("<div style=\"margin:0\">").append(naverSpan(esc(ln), seg)).append("</div>")
             } else {
-                sb.append("<p>").append(inlineNaver(esc(ln))).append("</p>")
+                sb.append("<div style=\"margin:0\">").append(inlineNaver(esc(ln))).append("</div>")
             }
         }
         return sb.toString()
